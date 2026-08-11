@@ -66,7 +66,7 @@ explaining why.
 | --- | --- |
 | `10-hostname` | Writes `/etc/hostname`, calls `hostname`, keeps the `127.0.1.1` line in `/etc/hosts` consistent |
 | `20-user` | Creates the account with `useradd --create-home --user-group` if absent, sets the shell, applies the password hash with `chpasswd --encrypted` (or locks the account), adds supplementary groups that exist |
-| `30-payload` | Reads `manifest.tsv` and runs `install -D -m <mode> -o root -g root` for each entry. Anything landing in `/etc/sudoers.d/` is checked with `visudo -c` |
+| `30-payload` | Reads `manifest.tsv` and runs `install -D -m <mode>` for each entry, so the files land owned by root because the runner is root. Anything landing in `/etc/sudoers.d/` is checked with `visudo -c` |
 | `40-ssh` | Installs `authorized_keys` into the account's `~/.ssh` with the right ownership, validates `sshd` configuration when host keys already exist, enables or disables `ssh.service` |
 | `50-network` | Re-asserts root ownership and mode 0600 on the NetworkManager keyfiles, sets the Wi-Fi regulatory domain, unblocks the radio, reloads NetworkManager if it is already running |
 | `60-usb-gadget` | `systemctl daemon-reload` and enables `rpi-provision-gadget.service` |

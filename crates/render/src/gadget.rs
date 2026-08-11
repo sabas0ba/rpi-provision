@@ -90,7 +90,13 @@ pub fn script(gadget: &UsbGadget) -> PayloadFile {
     if gadget.function == GadgetFunction::Rndis {
         let _ = writeln!(out, "    ln -sf \"$G/configs/c.1\" \"$G/os_desc/\"");
     }
-    let _ = writeln!(out, "    udc=\"$(ls /sys/class/udc 2>/dev/null | head -n 1)\"");
+    // Globbing rather than parsing ls (SC2012); the first UDC is the one.
+    let _ = writeln!(out, "    udc=''");
+    let _ = writeln!(out, "    for candidate in /sys/class/udc/*; do");
+    let _ = writeln!(out, "        [ -e \"$candidate\" ] || continue");
+    let _ = writeln!(out, "        udc=\"${{candidate##*/}}\"");
+    let _ = writeln!(out, "        break");
+    let _ = writeln!(out, "    done");
     let _ = writeln!(
         out,
         "    [ -n \"$udc\" ] || die \"no UDC found; check dtoverlay=dwc2,dr_mode=peripheral in config.txt\""

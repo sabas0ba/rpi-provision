@@ -98,6 +98,11 @@ fn shell_scripts(root: &Path) -> Vec<PathBuf> {
     found
 }
 
+// Unix only: on the Windows runner `bash` resolves to the WSL stub, which
+// exits non-zero without a distribution installed and so rejects every script
+// it is handed. The Linux job is what actually vets the generated shell; the
+// Windows job still checks the scripts as text, line endings included.
+#[cfg(unix)]
 #[test]
 fn every_generated_script_parses_under_dash_and_bash() {
     let root = rendered("syntax");
@@ -147,6 +152,9 @@ fn every_generated_script_is_a_strict_posix_script() {
     std::fs::remove_dir_all(&root).unwrap();
 }
 
+// Unix only: the step is asserted on by the permission bits it leaves behind,
+// which have no meaning on Windows.
+#[cfg(unix)]
 #[test]
 fn the_payload_step_installs_files_with_the_declared_modes() {
     let root = rendered("payload");
@@ -185,7 +193,6 @@ fn the_payload_step_installs_files_with_the_declared_modes() {
         destination_root.join("etc/NetworkManager/system-connections/home.nmconnection");
     assert!(installed.exists(), "the wireless profile was not installed");
 
-    #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         let mode = std::fs::metadata(&installed).unwrap().permissions().mode() & 0o777;
