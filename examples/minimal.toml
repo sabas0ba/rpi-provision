@@ -1,0 +1,16 @@
+# Minimal specification: SSH key login and nothing else.
+#
+#   rpi-provision apply examples/minimal.toml --boot /media/$USER/bootfs
+
+[meta]
+schema_version = 1
+target = "pi5"
+
+[system]
+hostname = "pi-minimal"
+
+[user]
+name = "engineer"
+authorized_keys = [
+  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyBodyThatIsLongEnough user@host",
+]

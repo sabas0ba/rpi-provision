@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/toml",
+    "crates/spec",
+    "crates/render",
+    "crates/apply",
+    "crates/cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/sabas0ba/rpi-provision"
+
+# This workspace intentionally has zero external dependencies.
+# See docs/adr/0001-zero-dependencies.md for the rationale.
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
