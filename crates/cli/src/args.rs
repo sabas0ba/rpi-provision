@@ -34,6 +34,8 @@ OPTIONS:
                                  Repeatable.
     -y, --yes                    Do not ask for confirmation before writing
     --allow-unverified-boot      Skip the boot-partition sanity check
+    --ignore-conflicts           Proceed even if another first-boot mechanism
+                                 (custom.toml, userconf.txt, ...) is present
     -q, --quiet                  Only report errors
     -v, --verbose                Show the full content of newly created files
     -h, --help                   Show this message
@@ -65,6 +67,7 @@ pub struct Options {
     pub quiet: bool,
     pub verbose: bool,
     pub allow_unverified_boot: bool,
+    pub ignore_conflicts: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -118,6 +121,7 @@ where
             "-q" | "--quiet" => options.quiet = true,
             "-v" | "--verbose" => options.verbose = true,
             "--allow-unverified-boot" => options.allow_unverified_boot = true,
+            "--ignore-conflicts" => options.ignore_conflicts = true,
             "-h" | "--help" => {
                 return Ok(Invocation { command: Command::Help, options: Options::default() })
             }

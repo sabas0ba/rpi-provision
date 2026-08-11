@@ -15,9 +15,11 @@ pub struct Ipv4Cidr {
 
 impl Ipv4Cidr {
     pub fn parse(text: &str) -> Result<Self> {
-        let (addr, prefix) = text
-            .split_once('/')
-            .ok_or_else(|| Error::new(format!("`{text}` is missing a prefix length (expected e.g. 192.168.1.50/24)")))?;
+        let (addr, prefix) = text.split_once('/').ok_or_else(|| {
+            Error::new(format!(
+                "`{text}` is missing a prefix length (expected e.g. 192.168.1.50/24)"
+            ))
+        })?;
         let address = Ipv4Addr::from_str(addr.trim())
             .map_err(|_| Error::new(format!("`{addr}` is not a valid IPv4 address")))?;
         let prefix: u8 = prefix
@@ -70,7 +72,9 @@ impl MacAddr {
         let mut bytes = [0u8; 6];
         for (slot, part) in bytes.iter_mut().zip(parts) {
             if part.len() != 2 {
-                return Err(Error::new(format!("`{text}` has an octet that is not two hex digits")));
+                return Err(Error::new(format!(
+                    "`{text}` has an octet that is not two hex digits"
+                )));
             }
             *slot = u8::from_str_radix(part, 16)
                 .map_err(|_| Error::new(format!("`{text}` contains a non-hexadecimal octet")))?;
@@ -102,11 +106,7 @@ impl MacAddr {
 impl fmt::Display for MacAddr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let b = self.0;
-        write!(
-            f,
-            "{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-            b[0], b[1], b[2], b[3], b[4], b[5]
-        )
+        write!(f, "{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}", b[0], b[1], b[2], b[3], b[4], b[5])
     }
 }
 
@@ -122,14 +122,7 @@ pub fn derive_uuid(seed: &[u8]) -> String {
     bytes[6] = (bytes[6] & 0x0f) | 0x80; // version 8 (custom)
     bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC 9562 variant
     let hex = crate::sha256::to_hex(&bytes);
-    format!(
-        "{}-{}-{}-{}-{}",
-        &hex[0..8],
-        &hex[8..12],
-        &hex[12..16],
-        &hex[16..20],
-        &hex[20..32]
-    )
+    format!("{}-{}-{}-{}-{}", &hex[0..8], &hex[8..12], &hex[12..16], &hex[16..20], &hex[20..32])
 }
 
 /// Parse an IPv4 address with a spec-friendly error message.
@@ -146,7 +139,9 @@ pub fn validate_interface(name: &str) -> Result<()> {
         )));
     }
     if !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b == b'.') {
-        return Err(Error::new(format!("`{name}` contains characters not allowed in an interface name")));
+        return Err(Error::new(format!(
+            "`{name}` contains characters not allowed in an interface name"
+        )));
     }
     Ok(())
 }

@@ -61,15 +61,13 @@ fn compress(state: &mut [u32; 8], block: &[u8]) {
     let mut w = [0u32; 64];
     for (i, word) in w.iter_mut().enumerate().take(16) {
         let base = i * 4;
-        *word = u32::from_be_bytes([block[base], block[base + 1], block[base + 2], block[base + 3]]);
+        *word =
+            u32::from_be_bytes([block[base], block[base + 1], block[base + 2], block[base + 3]]);
     }
     for i in 16..64 {
         let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
         let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
-        w[i] = w[i - 16]
-            .wrapping_add(s0)
-            .wrapping_add(w[i - 7])
-            .wrapping_add(s1);
+        w[i] = w[i - 16].wrapping_add(s0).wrapping_add(w[i - 7]).wrapping_add(s1);
     }
 
     let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = *state;
@@ -77,11 +75,7 @@ fn compress(state: &mut [u32; 8], block: &[u8]) {
     for i in 0..64 {
         let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
         let ch = (e & f) ^ ((!e) & g);
-        let temp1 = h
-            .wrapping_add(s1)
-            .wrapping_add(ch)
-            .wrapping_add(K[i])
-            .wrapping_add(w[i]);
+        let temp1 = h.wrapping_add(s1).wrapping_add(ch).wrapping_add(K[i]).wrapping_add(w[i]);
         let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
         let maj = (a & b) ^ (a & c) ^ (b & c);
         let temp2 = s0.wrapping_add(maj);

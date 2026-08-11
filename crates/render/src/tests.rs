@@ -169,7 +169,8 @@ fn cmdline_ops_install_the_runner_hook() {
 
 #[test]
 fn gpio_console_is_ttyama0_not_serial0() {
-    let source = format!("{MINIMAL}\n[hardware.uart]\nenabled = true\nconsole = true\nbaudrate = 115200\n");
+    let source =
+        format!("{MINIMAL}\n[hardware.uart]\nenabled = true\nconsole = true\nbaudrate = 115200\n");
     let plan = plan_of(&source);
     let ops = plan
         .actions
@@ -223,7 +224,8 @@ fn manifest_lists_every_payload_file() {
         written(&plan, &format!("rpi-provision/{source}"));
     }
 
-    let destinations: Vec<&str> = entries.iter().map(|line| line.split('\t').nth(2).unwrap()).collect();
+    let destinations: Vec<&str> =
+        entries.iter().map(|line| line.split('\t').nth(2).unwrap()).collect();
     for expected in [
         "/etc/NetworkManager/system-connections/eth0-static.nmconnection",
         "/etc/NetworkManager/system-connections/home.nmconnection",
@@ -256,12 +258,8 @@ fn manifest_destinations_are_unique() {
 #[test]
 fn secrets_are_marked_sensitive() {
     let plan = plan_of(FULL);
-    let sensitive: Vec<&str> = plan
-        .actions
-        .iter()
-        .filter(|action| action.is_sensitive())
-        .map(Action::path)
-        .collect();
+    let sensitive: Vec<&str> =
+        plan.actions.iter().filter(|action| action.is_sensitive()).map(Action::path).collect();
     assert!(sensitive.contains(&"rpi-provision/secrets/password.hash"));
     assert!(sensitive.iter().any(|path| path.ends_with("home.nmconnection")));
     assert!(
@@ -276,10 +274,7 @@ fn password_hash_never_appears_in_a_step_script() {
     for action in &plan.actions {
         if let Action::Write { path, contents, .. } = action {
             if path.contains("/steps/") || path.ends_with("firstrun.sh") {
-                assert!(
-                    !contents.contains("$6$rounds=4096"),
-                    "{path} embeds the password hash"
-                );
+                assert!(!contents.contains("$6$rounds=4096"), "{path} embeds the password hash");
             }
         }
     }
@@ -288,12 +283,8 @@ fn password_hash_never_appears_in_a_step_script() {
 #[test]
 fn steps_are_numbered_in_dependency_order() {
     let plan = plan_of(FULL);
-    let mut steps: Vec<&str> = plan
-        .actions
-        .iter()
-        .map(Action::path)
-        .filter(|path| path.contains("/steps/"))
-        .collect();
+    let mut steps: Vec<&str> =
+        plan.actions.iter().map(Action::path).filter(|path| path.contains("/steps/")).collect();
     steps.sort_unstable();
     let names: Vec<&str> = steps.iter().map(|path| path.rsplit('/').next().unwrap()).collect();
     assert_eq!(
@@ -363,7 +354,10 @@ fn runner_path_follows_the_configured_directory() {
 
 #[test]
 fn sshd_config_disables_passwords_by_default() {
-    let config = written(&plan_of(FULL), "rpi-provision/payload/etc/ssh/sshd_config.d/10-rpi-provision.conf");
+    let config = written(
+        &plan_of(FULL),
+        "rpi-provision/payload/etc/ssh/sshd_config.d/10-rpi-provision.conf",
+    );
     assert!(config.contains("PasswordAuthentication no"));
     assert!(config.contains("KbdInteractiveAuthentication no"));
     assert!(config.contains("PermitRootLogin no"));

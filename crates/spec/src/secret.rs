@@ -97,7 +97,10 @@ impl SecretProvider for MapSecrets {
 
     fn read_file(&self, path: &Path) -> std::io::Result<String> {
         self.files.get(path).cloned().ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::NotFound, format!("{} not found", path.display()))
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("{} not found", path.display()),
+            )
         })
     }
 }

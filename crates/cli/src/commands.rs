@@ -4,11 +4,11 @@ use std::io::{IsTerminal, Write};
 use std::path::Path;
 
 use rpi_provision_apply::{
-    execute, plan_changes, revert_plan, verify_boot_partition, BootFs, Change, ChangeKind,
-    RealBootFs,
+    conflicting_first_boot_files, execute, plan_changes, revert_plan, verify_boot_partition,
+    BootFs, Change, ChangeKind, RealBootFs,
 };
 use rpi_provision_render::{render, Plan};
-use rpi_provision_spec::{load_file, Loaded, LoadOptions, SystemSecrets};
+use rpi_provision_spec::{load_file, LoadOptions, Loaded, SystemSecrets};
 
 use crate::args::Options;
 
@@ -158,12 +158,38 @@ fn open_boot(boot: &Path, plan: &Plan, options: &Options) -> Result<RealBootFs> 
     let fs = RealBootFs::new(boot);
     if options.allow_unverified_boot {
         if !options.quiet {
-            eprintln!("warning: skipping the boot-partition check because of --allow-unverified-boot");
+            eprintln!(
+                "warning: skipping the boot-partition check because of --allow-unverified-boot"
+            );
         }
     } else {
         verify_boot_partition(&fs, &plan.target_dtb)?;
     }
     Ok(fs)
+}
+
+/// Refuse to add a second first-boot mechanism to a card that already has one.
+fn check_conflicts(fs: &RealBootFs, options: &Options) -> Result<()> {
+    let conflicts = conflicting_first_boot_files(fs);
+    if conflicts.is_empty() {
+        return Ok(());
+    }
+    let listed: Vec<String> =
+        conflicts.iter().map(|(name, what)| format!("  {name}  ({what})")).collect();
+    if options.ignore_conflicts {
+        eprintln!(
+            "warning: another first-boot mechanism is present and will be overridden:\n{}",
+            listed.join("\n")
+        );
+        return Ok(());
+    }
+    Err(Failure(format!(
+        "{} already carries another first-boot mechanism:\n{}\n\
+         Applying would rewrite cmdline.txt and silently disable it. Delete the\n\
+         file(s) above, or pass --ignore-conflicts if that is what you intend.",
+        fs.describe(),
+        listed.join("\n")
+    )))
 }
 
 pub fn diff(spec: &Path, boot: &Path, options: &Options) -> Result<()> {
@@ -175,7 +201,12 @@ pub fn diff(spec: &Path, boot: &Path, options: &Options) -> Result<()> {
     let changes = plan_changes(&plan, &fs)?;
     print_changes(&changes, options);
     let (created, updated, unchanged, deleted) = tally(&changes);
-    println!("{created} to create, {updated} to update, {unchanged} unchanged, {deleted} to delete");
+    println!(
+        "{created} to create, {updated} to update, {unchanged} unchanged, {deleted} to delete"
+    );
+    for (name, what) in conflicting_first_boot_files(&fs) {
+        eprintln!("warning: `{name}` ({what}) is present and would conflict with apply");
+    }
     Ok(())
 }
 
@@ -184,6 +215,7 @@ pub fn apply(spec: &Path, boot: &Path, options: &Options) -> Result<()> {
     report_warnings(&loaded, options);
     let plan = render(&loaded.spec, &loaded.digest);
     let mut fs = open_boot(boot, &plan, options)?;
+    check_conflicts(&fs, options)?;
 
     let changes = plan_changes(&plan, &fs)?;
     print_changes(&changes, options);
@@ -194,11 +226,7 @@ pub fn apply(spec: &Path, boot: &Path, options: &Options) -> Result<()> {
     }
 
     if !confirm(
-        &format!(
-            "Write {} change(s) to {}?",
-            created + updated + deleted,
-            fs.describe()
-        ),
+        &format!("Write {} change(s) to {}?", created + updated + deleted, fs.describe()),
         options,
     )? {
         return Err(Failure("aborted at the confirmation prompt".into()));
@@ -242,7 +270,10 @@ pub fn revert(spec: &Path, boot: &Path, options: &Options) -> Result<()> {
         return Ok(());
     }
 
-    if !confirm(&format!("Revert {} change(s) on {}?", created + updated + deleted, fs.describe()), options)? {
+    if !confirm(
+        &format!("Revert {} change(s) on {}?", created + updated + deleted, fs.describe()),
+        options,
+    )? {
         return Err(Failure("aborted at the confirmation prompt".into()));
     }
 
@@ -263,11 +294,7 @@ pub fn detect(options: &Options) -> Result<()> {
         return Ok(());
     }
     for candidate in candidates {
-        println!(
-            "{}\t{}",
-            candidate.path.display(),
-            candidate.model.unwrap_or("unknown model")
-        );
+        println!("{}\t{}", candidate.path.display(), candidate.model.unwrap_or("unknown model"));
     }
     Ok(())
 }

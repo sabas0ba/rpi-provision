@@ -17,11 +17,7 @@ impl Error {
 
     /// Values injected by `--set` carry no source position; line 0 marks them.
     pub fn at(line: usize, col: usize, message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            position: (line > 0).then_some((line, col)),
-            file: None,
-        }
+        Self { message: message.into(), position: (line > 0).then_some((line, col)), file: None }
     }
 
     pub fn in_file(mut self, file: impl Into<String>) -> Self {

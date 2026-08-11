@@ -138,6 +138,25 @@ pub fn verify_boot_partition(fs: &dyn BootFs, expected_dtb: &str) -> Result<()> 
     Ok(())
 }
 
+/// First-boot mechanisms that would fight with this tool.
+///
+/// Each of these is consumed by something else during the first boot, and the
+/// order in which they run relative to `systemd.run=` is not defined. Worse,
+/// rewriting `cmdline.txt` drops any foreign `systemd.run=` hook, silently
+/// disabling it.
+const CONFLICTING_FILES: [(&str, &str); 5] = [
+    ("custom.toml", "Raspberry Pi Imager customisation"),
+    ("rpi-preseed.toml", "rpi-preseed customisation"),
+    ("userconf.txt", "the userconf-pi first-boot account"),
+    ("firstrun.sh", "another first-boot script"),
+    ("user-data", "a cloud-init datasource"),
+];
+
+/// List foreign first-boot files present on the partition.
+pub fn conflicting_first_boot_files(fs: &dyn BootFs) -> Vec<(&'static str, &'static str)> {
+    CONFLICTING_FILES.into_iter().filter(|(name, _)| fs.exists(name)).collect()
+}
+
 /// Compute the exact bytes each action would produce.
 pub fn resolve(action: &Action, fs: &dyn BootFs) -> Result<Resolution> {
     match action {
@@ -177,9 +196,7 @@ fn read_text(fs: &dyn BootFs, path: &str) -> Result<String> {
     if !fs.exists(path) {
         return Ok(String::new());
     }
-    let bytes = fs
-        .read(path)
-        .map_err(|err| Error::new(format!("cannot read {path}: {err}")))?;
+    let bytes = fs.read(path).map_err(|err| Error::new(format!("cannot read {path}: {err}")))?;
     String::from_utf8(bytes)
         .map_err(|_| Error::new(format!("{path} is not valid UTF-8; refusing to edit it")))
 }

@@ -198,10 +198,7 @@ fn dry_run_reports_creations_on_a_fresh_card() {
     assert_eq!(config.kind, ChangeKind::Update);
     assert!(config.diff.as_ref().unwrap().contains("+ dtoverlay=dwc2,dr_mode=peripheral"));
 
-    let runner = changes
-        .iter()
-        .find(|change| change.path == "rpi-provision/firstrun.sh")
-        .unwrap();
+    let runner = changes.iter().find(|change| change.path == "rpi-provision/firstrun.sh").unwrap();
     assert_eq!(runner.kind, ChangeKind::Create);
 }
 
@@ -225,10 +222,7 @@ fn dry_run_after_apply_reports_no_changes() {
 fn secret_content_is_withheld_from_the_diff() {
     let fs = card();
     let changes = plan_changes(&plan(), &fs).unwrap();
-    let profile = changes
-        .iter()
-        .find(|change| change.path.ends_with("home.nmconnection"))
-        .unwrap();
+    let profile = changes.iter().find(|change| change.path.ends_with("home.nmconnection")).unwrap();
     assert!(profile.sensitive);
     let diff = profile.diff.as_ref().unwrap();
     assert!(diff.contains("withheld"), "{diff}");
@@ -307,4 +301,31 @@ fn writes_to_a_real_directory() {
     assert_eq!(std::fs::read_to_string(root.join("config.txt")).unwrap(), STOCK_CONFIG);
 
     std::fs::remove_dir_all(&root).unwrap();
+}
+
+// --------------------------------------------------------------- conflicts
+
+#[test]
+fn a_clean_card_has_no_conflicting_first_boot_files() {
+    assert!(conflicting_first_boot_files(&card()).is_empty());
+}
+
+#[test]
+fn an_imager_customisation_is_reported() {
+    let mut fs = card();
+    fs.put("custom.toml", "[user]\n");
+    fs.put("userconf.txt", "pi:$6$x\n");
+    let found: Vec<&str> =
+        conflicting_first_boot_files(&fs).into_iter().map(|(name, _)| name).collect();
+    assert_eq!(found, vec!["custom.toml", "userconf.txt"]);
+}
+
+#[test]
+fn our_own_runner_is_not_mistaken_for_a_foreign_one() {
+    let mut fs = card();
+    execute(&plan(), &mut fs).unwrap();
+    assert!(
+        conflicting_first_boot_files(&fs).is_empty(),
+        "rpi-provision/firstrun.sh lives below the runner directory, not at the root"
+    );
 }

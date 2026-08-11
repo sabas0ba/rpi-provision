@@ -47,12 +47,7 @@ pub struct LoadOptions<'a> {
 
 impl<'a> LoadOptions<'a> {
     pub fn new(provider: &'a dyn SecretProvider) -> Self {
-        Self {
-            base_dir: PathBuf::from("."),
-            provider,
-            sets: Vec::new(),
-            set_secrets: Vec::new(),
-        }
+        Self { base_dir: PathBuf::from("."), provider, sets: Vec::new(), set_secrets: Vec::new() }
     }
 
     pub fn base_dir(mut self, dir: impl Into<PathBuf>) -> Self {

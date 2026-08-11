@@ -25,19 +25,14 @@ pub fn inspect(path: &Path) -> Option<Candidate> {
     if !path.join("config.txt").is_file() || !path.join("cmdline.txt").is_file() {
         return None;
     }
-    let model = MODELS
-        .iter()
-        .find(|(blob, _)| path.join(blob).exists())
-        .map(|(_, name)| *name);
+    let model = MODELS.iter().find(|(blob, _)| path.join(blob).exists()).map(|(_, name)| *name);
     Some(Candidate { path: path.to_path_buf(), model })
 }
 
 /// Enumerate plausible boot partitions on this host.
 pub fn candidates() -> Vec<Candidate> {
-    let mut found: Vec<Candidate> = mount_points()
-        .iter()
-        .filter_map(|path| inspect(path))
-        .collect();
+    let mut found: Vec<Candidate> =
+        mount_points().iter().filter_map(|path| inspect(path)).collect();
     found.sort_by(|a, b| a.path.cmp(&b.path));
     found.dedup_by(|a, b| a.path == b.path);
     found
@@ -107,7 +102,8 @@ mod tests {
     use super::*;
 
     fn scratch(name: &str) -> PathBuf {
-        let path = std::env::temp_dir().join(format!("rpi-provision-detect-{}-{name}", std::process::id()));
+        let path = std::env::temp_dir()
+            .join(format!("rpi-provision-detect-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&path);
         std::fs::create_dir_all(&path).unwrap();
         path

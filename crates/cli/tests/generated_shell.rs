@@ -57,10 +57,8 @@ enabled = true
 "#;
 
 fn scratch(name: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!(
-        "rpi-provision-shell-{}-{name}",
-        std::process::id()
-    ));
+    let path =
+        std::env::temp_dir().join(format!("rpi-provision-shell-{}-{name}", std::process::id()));
     let _ = std::fs::remove_dir_all(&path);
     std::fs::create_dir_all(&path).unwrap();
     path
@@ -144,11 +142,7 @@ fn every_generated_script_is_a_strict_posix_script() {
             "{} must use Unix line endings even when generated on Windows",
             script.display()
         );
-        assert!(
-            body.ends_with('\n'),
-            "{} must end with a newline",
-            script.display()
-        );
+        assert!(body.ends_with('\n'), "{} must end with a newline", script.display());
     }
     std::fs::remove_dir_all(&root).unwrap();
 }
@@ -169,13 +163,7 @@ fn the_payload_step_installs_files_with_the_declared_modes() {
                 return format!("{line}\n");
             }
             let fields: Vec<&str> = line.split('\t').collect();
-            format!(
-                "{}\t{}\t{}{}\n",
-                fields[0],
-                fields[1],
-                destination_root.display(),
-                fields[2]
-            )
+            format!("{}\t{}\t{}{}\n", fields[0], fields[1], destination_root.display(), fields[2])
         })
         .collect();
     std::fs::write(base.join("manifest.tsv"), &redirected).unwrap();
@@ -193,7 +181,8 @@ fn the_payload_step_installs_files_with_the_declared_modes() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    let installed = destination_root.join("etc/NetworkManager/system-connections/home.nmconnection");
+    let installed =
+        destination_root.join("etc/NetworkManager/system-connections/home.nmconnection");
     assert!(installed.exists(), "the wireless profile was not installed");
 
     #[cfg(unix)]
@@ -262,16 +251,10 @@ systemd.run=/boot/firmware/rpi-provision/firstrun.sh \
 systemd.run_success_action=reboot systemd.unit=kernel-command-line.target\n";
     std::fs::write(boot.join("cmdline.txt"), stock).unwrap();
 
-    let program = format!(
-        "set -eu\nBOOT_MOUNT='{}'\n{function}\ncleanup_cmdline\n",
-        boot.display()
-    );
+    let program =
+        format!("set -eu\nBOOT_MOUNT='{}'\n{function}\ncleanup_cmdline\n", boot.display());
     let output = Command::new("dash").arg("-c").arg(&program).output().unwrap();
-    assert!(
-        output.status.success(),
-        "cleanup failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
+    assert!(output.status.success(), "cleanup failed: {}", String::from_utf8_lossy(&output.stderr));
 
     let cleaned = std::fs::read_to_string(boot.join("cmdline.txt")).unwrap();
     assert!(!cleaned.contains("systemd.run"), "{cleaned}");
@@ -302,7 +285,10 @@ fn the_runner_re_executes_from_the_staging_directory() {
     let wipe = runner.find("rm -rf \"$BOOT_BASE\"").expect("payload wipe");
     assert!(guard < wipe, "the runner must stage itself before it wipes the payload");
     assert!(runner.contains("exec /bin/sh \"$STAGE_DIR/firstrun.sh\""));
-    assert!(runner.contains("chmod 0700 \"$STAGE_DIR\""), "staged secrets must not be world-readable");
+    assert!(
+        runner.contains("chmod 0700 \"$STAGE_DIR\""),
+        "staged secrets must not be world-readable"
+    );
 
     std::fs::remove_dir_all(&root).unwrap();
 }
@@ -331,7 +317,9 @@ fn secrets_never_reach_a_world_readable_generated_file() {
     assert_eq!(
         offenders,
         vec![
-            PathBuf::from("rpi-provision/payload/etc/NetworkManager/system-connections/home.nmconnection"),
+            PathBuf::from(
+                "rpi-provision/payload/etc/NetworkManager/system-connections/home.nmconnection"
+            ),
             PathBuf::from("rpi-provision/secrets/password.hash"),
         ],
         "unexpected files contain secret material"

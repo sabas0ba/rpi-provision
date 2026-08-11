@@ -56,7 +56,8 @@ fn rejects_unknown_keys() {
     let err = load(&format!("{MINIMAL}\n[system]\nhostnaem = \"typo\"\n")).unwrap_err();
     assert!(err.message.contains("more than once") || err.message.contains("unknown key"));
 
-    let source = MINIMAL.replace("hostname = \"dev-pi-01\"", "hostname = \"pi\"\nhostnaem = \"typo\"");
+    let source =
+        MINIMAL.replace("hostname = \"dev-pi-01\"", "hostname = \"pi\"\nhostnaem = \"typo\"");
     let err = load(&source).unwrap_err();
     assert!(err.message.contains("unknown key"), "{}", err.message);
     assert!(err.message.contains("hostnaem"), "{}", err.message);
@@ -203,11 +204,9 @@ fn command_line_set_secret_overrides_the_source() {
 fn overrides_change_the_digest() {
     let provider = secrets();
     let plain = load_str(MINIMAL, &LoadOptions::new(&provider)).unwrap();
-    let overridden = load_str(
-        MINIMAL,
-        &LoadOptions::new(&provider).set("system.hostname=other").unwrap(),
-    )
-    .unwrap();
+    let overridden =
+        load_str(MINIMAL, &LoadOptions::new(&provider).set("system.hostname=other").unwrap())
+            .unwrap();
     assert_ne!(plain.digest, overridden.digest);
 }
 
@@ -445,9 +444,5 @@ fn gadget_and_debug_uart_warns_about_power() {
         "{MINIMAL}\n[network.usb_gadget]\nenabled = true\n[hardware.uart]\ndebug_connector = true\n"
     );
     let loaded = load(&source).unwrap();
-    assert!(
-        loaded.warnings.iter().any(|w| w.contains("GPIO header")),
-        "{:?}",
-        loaded.warnings
-    );
+    assert!(loaded.warnings.iter().any(|w| w.contains("GPIO header")), "{:?}", loaded.warnings);
 }

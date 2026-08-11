@@ -159,9 +159,7 @@ impl MemBootFs {
     }
 
     pub fn text(&self, relative: &str) -> Option<String> {
-        self.files
-            .get(relative)
-            .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
+        self.files.get(relative).map(|bytes| String::from_utf8_lossy(bytes).into_owned())
     }
 
     pub fn paths(&self) -> Vec<&str> {
@@ -176,9 +174,10 @@ impl BootFs for MemBootFs {
 
     fn read(&self, relative: &str) -> io::Result<Vec<u8>> {
         validate_relative(relative)?;
-        self.files.get(relative).cloned().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::NotFound, format!("{relative} not found"))
-        })
+        self.files
+            .get(relative)
+            .cloned()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("{relative} not found")))
     }
 
     fn write(&mut self, relative: &str, contents: &[u8], executable: bool) -> io::Result<()> {

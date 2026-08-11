@@ -52,10 +52,8 @@ fn parses_escapes() {
 
 #[test]
 fn parses_multiline_strings() {
-    let table = parse(
-        "basic = \"\"\"\nline one\nline two\"\"\"\nliteral = '''\nraw \\n here'''\n",
-    )
-    .unwrap();
+    let table = parse("basic = \"\"\"\nline one\nline two\"\"\"\nliteral = '''\nraw \\n here'''\n")
+        .unwrap();
     assert_eq!(get(&table, "basic"), &Value::String("line one\nline two".into()));
     assert_eq!(get(&table, "literal"), &Value::String("raw \\n here".into()));
 }

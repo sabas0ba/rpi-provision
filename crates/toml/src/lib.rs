@@ -238,7 +238,11 @@ impl<'a> Parser<'a> {
         self.expect_line_end()?;
 
         if self.explicit_tables.contains(&path) || self.dotted_tables.contains(&path) {
-            return self.err_at(line, col, format!("table `{}` is defined more than once", path.join(".")));
+            return self.err_at(
+                line,
+                col,
+                format!("table `{}` is defined more than once", path.join(".")),
+            );
         }
         if self.array_tables.contains(&path) {
             return self.err_at(
@@ -277,7 +281,9 @@ impl<'a> Parser<'a> {
         let (parent_path, key) = path.split_at(path.len() - 1);
         let key = key[0].clone();
         let parent = self.navigate(root, parent_path, line, col)?;
-        let entry = parent.entry(key.clone()).or_insert_with(|| Node::new(Value::Array(Vec::new()), line, col));
+        let entry = parent
+            .entry(key.clone())
+            .or_insert_with(|| Node::new(Value::Array(Vec::new()), line, col));
         match &mut entry.value {
             Value::Array(items) => {
                 items.push(Node::new(Value::Table(Table::new()), line, col));
@@ -390,7 +396,11 @@ impl<'a> Parser<'a> {
 
         let parent = self.navigate(root, parent_path, line, col)?;
         if parent.contains_key(&key) {
-            return self.err_at(line, col, format!("key `{}` is defined more than once", full.join(".")));
+            return self.err_at(
+                line,
+                col,
+                format!("key `{}` is defined more than once", full.join(".")),
+            );
         }
         parent.insert(key, node);
         Ok(())
@@ -457,9 +467,9 @@ impl<'a> Parser<'a> {
 
         let cleaned = raw.replace('_', "");
         if let Some(hex) = cleaned.strip_prefix("0x") {
-            return i64::from_str_radix(hex, 16)
-                .map(Value::Integer)
-                .or_else(|_| self.err_at(line, col, format!("invalid hexadecimal integer `{raw}`")));
+            return i64::from_str_radix(hex, 16).map(Value::Integer).or_else(|_| {
+                self.err_at(line, col, format!("invalid hexadecimal integer `{raw}`"))
+            });
         }
         if let Some(oct) = cleaned.strip_prefix("0o") {
             return i64::from_str_radix(oct, 8)
@@ -531,7 +541,11 @@ impl<'a> Parser<'a> {
             let key = key[0].clone();
             let parent = self.navigate(&mut table, parent_path, line, col)?;
             if parent.contains_key(&key) {
-                return self.err_at(key_line, key_col, format!("key `{}` is defined more than once", path.join(".")));
+                return self.err_at(
+                    key_line,
+                    key_col,
+                    format!("key `{}` is defined more than once", path.join(".")),
+                );
             }
             parent.insert(key, node);
 
@@ -594,7 +608,10 @@ impl<'a> Parser<'a> {
         }
         let mut out = String::new();
         loop {
-            if self.peek() == Some(b'"') && self.peek_at(1) == Some(b'"') && self.peek_at(2) == Some(b'"') {
+            if self.peek() == Some(b'"')
+                && self.peek_at(1) == Some(b'"')
+                && self.peek_at(2) == Some(b'"')
+            {
                 for _ in 0..3 {
                     self.bump();
                 }
@@ -605,12 +622,18 @@ impl<'a> Parser<'a> {
                 Some(b'\\') => {
                     // A backslash at end of line trims the following whitespace.
                     let mut lookahead = self.pos + 1;
-                    while matches!(self.bytes.get(lookahead), Some(b' ') | Some(b'\t') | Some(b'\r')) {
+                    while matches!(
+                        self.bytes.get(lookahead),
+                        Some(b' ') | Some(b'\t') | Some(b'\r')
+                    ) {
                         lookahead += 1;
                     }
                     if self.bytes.get(lookahead) == Some(&b'\n') {
                         self.bump(); // backslash
-                        while matches!(self.peek(), Some(b' ') | Some(b'\t') | Some(b'\r') | Some(b'\n')) {
+                        while matches!(
+                            self.peek(),
+                            Some(b' ') | Some(b'\t') | Some(b'\r') | Some(b'\n')
+                        ) {
                             self.bump();
                         }
                     } else {
@@ -650,7 +673,10 @@ impl<'a> Parser<'a> {
         }
         let mut out = String::new();
         loop {
-            if self.peek() == Some(b'\'') && self.peek_at(1) == Some(b'\'') && self.peek_at(2) == Some(b'\'') {
+            if self.peek() == Some(b'\'')
+                && self.peek_at(1) == Some(b'\'')
+                && self.peek_at(2) == Some(b'\'')
+            {
                 for _ in 0..3 {
                     self.bump();
                 }

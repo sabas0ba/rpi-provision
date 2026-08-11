@@ -71,7 +71,10 @@ pub fn firstrun(spec: &Spec, layout: &Layout, digest: &str) -> String {
     let _ = writeln!(out);
     let _ = writeln!(out, "log() {{");
     let _ = writeln!(out, "    printf '[rpi-provision] %s\\n' \"$*\"");
-    let _ = writeln!(out, "    printf '[rpi-provision] %s\\n' \"$*\" >>\"$LOG_PATH\" 2>/dev/null || true");
+    let _ = writeln!(
+        out,
+        "    printf '[rpi-provision] %s\\n' \"$*\" >>\"$LOG_PATH\" 2>/dev/null || true"
+    );
     let _ = writeln!(out, "}}");
     let _ = writeln!(out);
     let _ = writeln!(out, "ensure_writable() {{");
@@ -108,7 +111,8 @@ pub fn firstrun(spec: &Spec, layout: &Layout, digest: &str) -> String {
     let _ = writeln!(out, "    return 0");
     let _ = writeln!(out, "}}");
     let _ = writeln!(out);
-    let _ = writeln!(out, "# Drop the first-boot hooks so a failed run cannot turn into a boot loop.");
+    let _ =
+        writeln!(out, "# Drop the first-boot hooks so a failed run cannot turn into a boot loop.");
     let _ = writeln!(out, "cleanup_cmdline() {{");
     let _ = writeln!(out, "    target=\"$BOOT_MOUNT/cmdline.txt\"");
     let _ = writeln!(out, "    [ -f \"$target\" ] || return 0");
@@ -142,7 +146,8 @@ pub fn firstrun(spec: &Spec, layout: &Layout, digest: &str) -> String {
     let _ = writeln!(out, "sync");
     let _ = writeln!(out, "log \"finished with status=$STATUS\"");
     let _ = writeln!(out);
-    let _ = writeln!(out, "# Always exit successfully: systemd.run_success_action=reboot then takes");
+    let _ =
+        writeln!(out, "# Always exit successfully: systemd.run_success_action=reboot then takes");
     let _ = writeln!(out, "# the machine into a normal boot, where the log can be inspected.");
     let _ = writeln!(out, "exit 0");
     out
@@ -158,7 +163,10 @@ pub fn hostname_step(spec: &Spec) -> Step {
     let _ = writeln!(out, "hostname \"$HOSTNAME\" 2>/dev/null || true");
     let _ = writeln!(out);
     let _ = writeln!(out, "if grep -qE '^127\\.0\\.1\\.1[[:space:]]' /etc/hosts; then");
-    let _ = writeln!(out, "    sed -i \"s|^127\\.0\\.1\\.1[[:space:]].*|127.0.1.1\t$HOSTNAME|\" /etc/hosts");
+    let _ = writeln!(
+        out,
+        "    sed -i \"s|^127\\.0\\.1\\.1[[:space:]].*|127.0.1.1\t$HOSTNAME|\" /etc/hosts"
+    );
     let _ = writeln!(out, "else");
     let _ = writeln!(out, "    printf '127.0.1.1\\t%s\\n' \"$HOSTNAME\" >>/etc/hosts");
     let _ = writeln!(out, "fi");
@@ -172,14 +180,20 @@ pub fn user_step(spec: &Spec, _layout: &Layout) -> Step {
     let _ = writeln!(out, "USER_SHELL={}", quote(&user.shell));
     let _ = writeln!(out);
     let _ = writeln!(out, "if ! id -u \"$USER_NAME\" >/dev/null 2>&1; then");
-    let _ = writeln!(out, "    useradd --create-home --user-group --shell \"$USER_SHELL\" \"$USER_NAME\"");
+    let _ = writeln!(
+        out,
+        "    useradd --create-home --user-group --shell \"$USER_SHELL\" \"$USER_NAME\""
+    );
     let _ = writeln!(out, "fi");
     let _ = writeln!(out, "usermod --shell \"$USER_SHELL\" \"$USER_NAME\"");
     let _ = writeln!(out);
 
     if user.password_hash.is_some() {
         let _ = writeln!(out, "if [ -f \"$BASE/secrets/password.hash\" ]; then");
-        let _ = writeln!(out, "    printf '%s:%s\\n' \"$USER_NAME\" \"$(cat \"$BASE/secrets/password.hash\")\" \\");
+        let _ = writeln!(
+            out,
+            "    printf '%s:%s\\n' \"$USER_NAME\" \"$(cat \"$BASE/secrets/password.hash\")\" \\"
+        );
         let _ = writeln!(out, "        | chpasswd --encrypted");
         let _ = writeln!(out, "else");
         let _ = writeln!(out, "    printf 'password hash is missing from the payload\\n' >&2");
@@ -204,7 +218,8 @@ pub fn user_step(spec: &Spec, _layout: &Layout) -> Step {
         let _ = writeln!(out, "    if getent group \"$group\" >/dev/null 2>&1; then");
         let _ = writeln!(out, "        usermod --append --groups \"$group\" \"$USER_NAME\"");
         let _ = writeln!(out, "    else");
-        let _ = writeln!(out, "        printf 'group %s does not exist, skipping\\n' \"$group\" >&2");
+        let _ =
+            writeln!(out, "        printf 'group %s does not exist, skipping\\n' \"$group\" >&2");
         let _ = writeln!(out, "    fi");
         let _ = writeln!(out, "done");
     }
@@ -223,7 +238,10 @@ pub fn payload_step() -> Step {
     let _ = writeln!(out, "        ''|\\#*) continue ;;");
     let _ = writeln!(out, "    esac");
     let _ = writeln!(out, "    [ -n \"$source\" ] && [ -n \"$destination\" ] || continue");
-    let _ = writeln!(out, "    install -D -m \"$mode\" -o root -g root \"$BASE/$source\" \"$destination\"");
+    let _ = writeln!(
+        out,
+        "    install -D -m \"$mode\" -o root -g root \"$BASE/$source\" \"$destination\""
+    );
     let _ = writeln!(out, "    printf 'installed %s (mode %s)\\n' \"$destination\" \"$mode\"");
     let _ = writeln!(out, "    case \"$destination\" in");
     let _ = writeln!(out, "        /etc/sudoers.d/*)");
@@ -245,20 +263,28 @@ pub fn ssh_step(spec: &Spec, _layout: &Layout) -> Step {
     } else {
         let _ = writeln!(out, "HOME_DIR=\"$(getent passwd \"$USER_NAME\" | cut -d: -f6)\"");
         let _ = writeln!(out, "if [ -z \"$HOME_DIR\" ]; then");
-        let _ = writeln!(out, "    printf 'cannot determine the home directory of %s\\n' \"$USER_NAME\" >&2");
+        let _ = writeln!(
+            out,
+            "    printf 'cannot determine the home directory of %s\\n' \"$USER_NAME\" >&2"
+        );
         let _ = writeln!(out, "    exit 1");
         let _ = writeln!(out, "fi");
         let _ = writeln!(out, "USER_GROUP=\"$(id -gn \"$USER_NAME\")\"");
-        let _ = writeln!(out, "install -d -m 0700 -o \"$USER_NAME\" -g \"$USER_GROUP\" \"$HOME_DIR/.ssh\"");
+        let _ = writeln!(
+            out,
+            "install -d -m 0700 -o \"$USER_NAME\" -g \"$USER_GROUP\" \"$HOME_DIR/.ssh\""
+        );
         let _ = writeln!(out, "install -m 0600 -o \"$USER_NAME\" -g \"$USER_GROUP\" \\");
         let _ = writeln!(out, "    \"$BASE/authorized_keys\" \"$HOME_DIR/.ssh/authorized_keys\"");
     }
     let _ = writeln!(out);
     if spec.ssh.enabled {
-        let _ = writeln!(out, "# Validate the configuration before enabling the service. Host keys");
+        let _ =
+            writeln!(out, "# Validate the configuration before enabling the service. Host keys");
         let _ = writeln!(out, "# may not exist yet on a freshly written card, in which case sshd");
         let _ = writeln!(out, "# cannot self-test and the check is skipped.");
-        let _ = writeln!(out, "if [ -x /usr/sbin/sshd ] && [ -f /etc/ssh/ssh_host_ed25519_key ]; then");
+        let _ =
+            writeln!(out, "if [ -x /usr/sbin/sshd ] && [ -f /etc/ssh/ssh_host_ed25519_key ]; then");
         let _ = writeln!(out, "    /usr/sbin/sshd -t");
         let _ = writeln!(out, "fi");
         let _ = writeln!(out, "systemctl enable ssh");
@@ -270,7 +296,9 @@ pub fn ssh_step(spec: &Spec, _layout: &Layout) -> Step {
 }
 
 pub fn network_step(spec: &Spec) -> Step {
-    let mut out = preamble("Tighten permissions on the NetworkManager profiles and set the Wi-Fi regulatory domain.");
+    let mut out = preamble(
+        "Tighten permissions on the NetworkManager profiles and set the Wi-Fi regulatory domain.",
+    );
     let _ = writeln!(out, "PROFILE_DIR='/etc/NetworkManager/system-connections'");
     let _ = writeln!(out);
     let _ = writeln!(out, "if [ -d \"$PROFILE_DIR\" ]; then");

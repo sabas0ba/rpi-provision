@@ -98,8 +98,7 @@ impl<'a> Reader<'a> {
     }
 
     pub fn req_string(&mut self, key: &str) -> Result<String> {
-        self.opt_string(key)?
-            .ok_or_else(|| self.error(key, "is required"))
+        self.opt_string(key)?.ok_or_else(|| self.error(key, "is required"))
     }
 
     pub fn string_or(&mut self, key: &str, default: &str) -> Result<String> {
@@ -143,10 +142,9 @@ impl<'a> Reader<'a> {
     pub fn enumerated(&mut self, key: &str, default: &str, allowed: &[&str]) -> Result<String> {
         let value = self.string_or(key, default)?;
         if !allowed.contains(&value.as_str()) {
-            return Err(self.error(
-                key,
-                format!("must be one of {}, got `{value}`", allowed.join(", ")),
-            ));
+            return Err(
+                self.error(key, format!("must be one of {}, got `{value}`", allowed.join(", ")))
+            );
         }
         Ok(value)
     }
@@ -185,11 +183,9 @@ impl<'a> Reader<'a> {
     pub fn table(&mut self, key: &str) -> Result<Reader<'a>> {
         static EMPTY: std::sync::OnceLock<Table> = std::sync::OnceLock::new();
         match self.take(key) {
-            None => Ok(Reader::child(
-                EMPTY.get_or_init(Table::new),
-                self.key_path(key),
-                self.position,
-            )),
+            None => {
+                Ok(Reader::child(EMPTY.get_or_init(Table::new), self.key_path(key), self.position))
+            }
             Some(Node { value: Value::Table(table), line, col }) => {
                 Ok(Reader::child(table, self.key_path(key), Some((*line, *col))))
             }
@@ -201,11 +197,9 @@ impl<'a> Reader<'a> {
     pub fn opt_table(&mut self, key: &str) -> Result<Option<Reader<'a>>> {
         match self.take(key) {
             None => Ok(None),
-            Some(Node { value: Value::Table(table), line, col }) => Ok(Some(Reader::child(
-                table,
-                self.key_path(key),
-                Some((*line, *col)),
-            ))),
+            Some(Node { value: Value::Table(table), line, col }) => {
+                Ok(Some(Reader::child(table, self.key_path(key), Some((*line, *col)))))
+            }
             Some(node) => Err(self.wrong_type(key, "a table", node.type_name())),
         }
     }
@@ -244,26 +238,22 @@ impl<'a> Reader<'a> {
 
     /// Fail if the document declared keys that were never read.
     pub fn finish(&self) -> Result<()> {
-        let unknown: Vec<&str> = self
-            .table
-            .keys()
-            .filter(|key| !self.used.contains(*key))
-            .map(String::as_str)
-            .collect();
+        let unknown: Vec<&str> =
+            self.table.keys().filter(|key| !self.used.contains(*key)).map(String::as_str).collect();
         if unknown.is_empty() {
             return Ok(());
         }
         let node = self.table.get(unknown[0]);
         let location = node.map(|n| (n.line, n.col)).or(self.position);
-        let scope = if self.path.is_empty() { "the document root".to_string() } else { format!("`{}`", self.path) };
+        let scope = if self.path.is_empty() {
+            "the document root".to_string()
+        } else {
+            format!("`{}`", self.path)
+        };
         let message = format!(
             "unknown key{} in {scope}: {}",
             if unknown.len() == 1 { "" } else { "s" },
-            unknown
-                .iter()
-                .map(|k| format!("`{k}`"))
-                .collect::<Vec<_>>()
-                .join(", ")
+            unknown.iter().map(|k| format!("`{k}`")).collect::<Vec<_>>().join(", ")
         );
         Err(match location {
             Some((line, col)) => Error::at(line, col, message),

@@ -45,7 +45,8 @@ pub fn script(gadget: &UsbGadget) -> PayloadFile {
     let _ = writeln!(out);
     let _ = writeln!(out, "up() {{");
     let _ = writeln!(out, "    modprobe libcomposite || die \"cannot load libcomposite\"");
-    let _ = writeln!(out, "    [ -d \"$CONFIGFS\" ] || die \"configfs is not mounted at $CONFIGFS\"");
+    let _ =
+        writeln!(out, "    [ -d \"$CONFIGFS\" ] || die \"configfs is not mounted at $CONFIGFS\"");
     let _ = writeln!(out, "    if [ -d \"$G\" ]; then");
     let _ = writeln!(out, "        return 0");
     let _ = writeln!(out, "    fi");
@@ -59,7 +60,10 @@ pub fn script(gadget: &UsbGadget) -> PayloadFile {
     let _ = writeln!(out, "    printf '%s' \"$PRODUCT\"      > \"$G/strings/0x409/product\"");
     let _ = writeln!(out, "    printf '%s' \"$SERIAL\"       > \"$G/strings/0x409/serialnumber\"");
     let _ = writeln!(out, "    mkdir -p \"$G/configs/c.1/strings/0x409\"");
-    let _ = writeln!(out, "    printf '%s' \"$PRODUCT\" > \"$G/configs/c.1/strings/0x409/configuration\"");
+    let _ = writeln!(
+        out,
+        "    printf '%s' \"$PRODUCT\" > \"$G/configs/c.1/strings/0x409/configuration\""
+    );
     let _ = writeln!(out, "    printf '%s' '250'      > \"$G/configs/c.1/MaxPower\"");
     let _ = writeln!(out, "    mkdir -p \"$G/functions/$FUNC\"");
     let _ = writeln!(out, "    if [ -e \"$G/functions/$FUNC/dev_addr\" ]; then");

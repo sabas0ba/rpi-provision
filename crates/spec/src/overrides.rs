@@ -118,9 +118,12 @@ fn parse_path(text: &str) -> Result<Vec<Segment>> {
             let close = remainder
                 .find(']')
                 .ok_or_else(|| Error::new(format!("`{text}` has an unterminated `[`")))?;
-            let index: usize = remainder[1..close]
-                .parse()
-                .map_err(|_| Error::new(format!("`{}` is not a valid array index in `{text}`", &remainder[1..close])))?;
+            let index: usize = remainder[1..close].parse().map_err(|_| {
+                Error::new(format!(
+                    "`{}` is not a valid array index in `{text}`",
+                    &remainder[1..close]
+                ))
+            })?;
             segments.push(Segment::Index(index));
             remainder = &remainder[close + 1..];
         }
@@ -132,10 +135,8 @@ fn parse_path(text: &str) -> Result<Vec<Segment>> {
 /// missing array elements are an error, because inventing one would silently
 /// change the meaning of the specification.
 pub fn apply(root: &mut Table, over: &Override) -> Result<()> {
-    let (last, parents) = over
-        .path
-        .split_last()
-        .ok_or_else(|| Error::new("the override path is empty"))?;
+    let (last, parents) =
+        over.path.split_last().ok_or_else(|| Error::new("the override path is empty"))?;
 
     let mut cursor = Cursor::Table(root);
     for (depth, segment) in parents.iter().enumerate() {
@@ -195,9 +196,7 @@ fn step<'a>(
         (Cursor::Array(items), Segment::Index(index)) => {
             let len = items.len();
             let node = items.get_mut(*index).ok_or_else(|| {
-                Error::new(format!(
-                    "`{origin}`: index {index} is out of range ({len} entries)"
-                ))
+                Error::new(format!("`{origin}`: index {index} is out of range ({len} entries)"))
             })?;
             match &mut node.value {
                 Value::Table(inner) => Ok(Cursor::Table(inner)),
@@ -260,7 +259,8 @@ mod tests {
 
     #[test]
     fn indexes_array_of_tables() {
-        let mut table = doc("[[network.ethernet]]\nid = \"a\"\n\n[[network.ethernet]]\nid = \"b\"\n");
+        let mut table =
+            doc("[[network.ethernet]]\nid = \"a\"\n\n[[network.ethernet]]\nid = \"b\"\n");
         apply(&mut table, &parse_set("network.ethernet[1].id=changed").unwrap()).unwrap();
         let Value::Table(network) = &table["network"].value else { panic!() };
         let Value::Array(items) = &network["ethernet"].value else { panic!() };

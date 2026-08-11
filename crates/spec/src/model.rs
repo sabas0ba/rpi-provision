@@ -30,7 +30,12 @@ impl<'a> Context<'a> {
         self.warnings.push(message.into());
     }
 
-    fn secret(&self, reader: &Reader<'_>, key: &str, source: &crate::secret::SecretSource) -> Result<String> {
+    fn secret(
+        &self,
+        reader: &Reader<'_>,
+        key: &str,
+        source: &crate::secret::SecretSource,
+    ) -> Result<String> {
         let what = format!("`{}.{}`", reader.path(), key);
         resolve(source, self.provider, &self.base_dir, &what)
     }
@@ -72,7 +77,10 @@ impl Spec {
                  no way to log in.",
             ));
         }
-        if self.ssh.enabled && !self.ssh.password_authentication && self.user.authorized_keys.is_empty() {
+        if self.ssh.enabled
+            && !self.ssh.password_authentication
+            && self.user.authorized_keys.is_empty()
+        {
             return Err(Error::new(
                 "`ssh`: password authentication is disabled but no authorized keys were supplied; \
                  the machine would be unreachable. Set `user.authorized_keys` or enable \
@@ -242,7 +250,10 @@ impl User {
         for path in reader.string_list("authorized_keys_files")? {
             let full = ctx.base_dir.join(&path);
             let contents = std::fs::read_to_string(&full).map_err(|err| {
-                reader.key_error("authorized_keys_files", format!("cannot read `{}`: {err}", full.display()))
+                reader.key_error(
+                    "authorized_keys_files",
+                    format!("cannot read `{}`: {err}", full.display()),
+                )
             })?;
             authorized_keys.extend(
                 contents
@@ -253,7 +264,8 @@ impl User {
             );
         }
         for key in &authorized_keys {
-            validate_authorized_key(key).map_err(|err| reader.key_error("authorized_keys", err.message))?;
+            validate_authorized_key(key)
+                .map_err(|err| reader.key_error("authorized_keys", err.message))?;
         }
         authorized_keys.dedup();
 
@@ -267,7 +279,10 @@ impl User {
             return Err(reader.key_error("shell", "must be an absolute path"));
         }
 
-        let sudo = match reader.enumerated("sudo", "nopasswd", &["nopasswd", "password", "none"])?.as_str() {
+        let sudo = match reader
+            .enumerated("sudo", "nopasswd", &["nopasswd", "password", "none"])?
+            .as_str()
+        {
             "nopasswd" => SudoMode::NoPassword,
             "password" => SudoMode::Password,
             _ => SudoMode::None,
@@ -333,7 +348,9 @@ pub fn validate_authorized_key(key: &str) -> Result<()> {
             known.join(", ")
         )));
     }
-    if blob.len() < 16 || !blob.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=') {
+    if blob.len() < 16
+        || !blob.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=')
+    {
         return Err(Error::new("the key body is not valid base64"));
     }
     Ok(())
@@ -402,24 +419,32 @@ pub struct IpConfig {
 
 impl IpConfig {
     fn read(reader: &mut Reader<'_>, ctx: &mut Context<'_>, default_method: &str) -> Result<Self> {
-        let method = match reader.enumerated("method", default_method, &["auto", "manual", "disabled"])?.as_str() {
+        let method = match reader
+            .enumerated("method", default_method, &["auto", "manual", "disabled"])?
+            .as_str()
+        {
             "auto" => IpMethod::Auto,
             "manual" => IpMethod::Manual,
             _ => IpMethod::Disabled,
         };
         let address = match reader.opt_string("address")? {
-            Some(text) => Some(Ipv4Cidr::parse(&text).map_err(|err| reader.key_error("address", err.message))?),
+            Some(text) => Some(
+                Ipv4Cidr::parse(&text).map_err(|err| reader.key_error("address", err.message))?,
+            ),
             None => None,
         };
         let gateway = match reader.opt_string("gateway")? {
-            Some(text) => Some(net::parse_ipv4(&text).map_err(|err| reader.key_error("gateway", err.message))?),
+            Some(text) => Some(
+                net::parse_ipv4(&text).map_err(|err| reader.key_error("gateway", err.message))?,
+            ),
             None => None,
         };
         let mut dns = Vec::new();
         for entry in reader.string_list("dns")? {
             dns.push(net::parse_ipv4(&entry).map_err(|err| reader.key_error("dns", err.message))?);
         }
-        let ignore_auto_dns = reader.bool_or("ignore_auto_dns", !dns.is_empty() && method == IpMethod::Auto)?;
+        let ignore_auto_dns =
+            reader.bool_or("ignore_auto_dns", !dns.is_empty() && method == IpMethod::Auto)?;
         let ipv6 = match reader.enumerated("ipv6", "auto", &["auto", "disabled"])?.as_str() {
             "auto" => IpMethod::Auto,
             _ => IpMethod::Disabled,
@@ -430,9 +455,9 @@ impl IpConfig {
                 return Err(reader.table_error("`method` is `manual` but no `address` was given"));
             }
             IpMethod::Auto | IpMethod::Disabled if address.is_some() => {
-                return Err(reader.table_error(
-                    "`address` is only meaningful when `method` is `manual`",
-                ));
+                return Err(
+                    reader.table_error("`address` is only meaningful when `method` is `manual`")
+                );
             }
             _ => {}
         }
@@ -445,7 +470,9 @@ impl IpConfig {
             }
         }
         if gateway.is_some() && method != IpMethod::Manual {
-            return Err(reader.table_error("`gateway` is only meaningful when `method` is `manual`"));
+            return Err(
+                reader.table_error("`gateway` is only meaningful when `method` is `manual`")
+            );
         }
 
         Ok(Self { method, address, gateway, dns, ignore_auto_dns, ipv6 })
@@ -467,11 +494,14 @@ impl EthernetConnection {
         let id = reader.req_string("id")?;
         validate_connection_id(&id).map_err(|err| reader.key_error("id", err.message))?;
         let interface = reader.string_or("interface", "eth0")?;
-        net::validate_interface(&interface).map_err(|err| reader.key_error("interface", err.message))?;
+        net::validate_interface(&interface)
+            .map_err(|err| reader.key_error("interface", err.message))?;
         let autoconnect = reader.bool_or("autoconnect", true)?;
         let autoconnect_priority = reader.integer_in_range("autoconnect_priority", 0, -999, 999)?;
         let mac = match reader.opt_string("mac")? {
-            Some(text) => Some(MacAddr::parse(&text).map_err(|err| reader.key_error("mac", err.message))?),
+            Some(text) => {
+                Some(MacAddr::parse(&text).map_err(|err| reader.key_error("mac", err.message))?)
+            }
             None => None,
         };
         let ip = IpConfig::read(reader, ctx, "auto")?;
@@ -510,12 +540,14 @@ impl WifiConnection {
         let ssid = reader.req_string("ssid")?;
         validate_ssid(&ssid).map_err(|err| reader.key_error("ssid", err.message))?;
         let interface = reader.string_or("interface", "wlan0")?;
-        net::validate_interface(&interface).map_err(|err| reader.key_error("interface", err.message))?;
-        let security = match reader.enumerated("security", "wpa-psk", &["wpa-psk", "sae", "open"])?.as_str() {
-            "wpa-psk" => WifiSecurity::WpaPsk,
-            "sae" => WifiSecurity::Sae,
-            _ => WifiSecurity::Open,
-        };
+        net::validate_interface(&interface)
+            .map_err(|err| reader.key_error("interface", err.message))?;
+        let security =
+            match reader.enumerated("security", "wpa-psk", &["wpa-psk", "sae", "open"])?.as_str() {
+                "wpa-psk" => WifiSecurity::WpaPsk,
+                "sae" => WifiSecurity::Sae,
+                _ => WifiSecurity::Open,
+            };
         let psk = match read_secret(reader, "psk")? {
             Some(source) => Some(ctx.secret(reader, "psk", &source)?),
             None => None,
@@ -537,7 +569,17 @@ impl WifiConnection {
         let autoconnect_priority = reader.integer_in_range("autoconnect_priority", 0, -999, 999)?;
         let ip = IpConfig::read(reader, ctx, "auto")?;
         reader.finish()?;
-        Ok(Self { id, ssid, interface, security, psk, hidden, ip, autoconnect, autoconnect_priority })
+        Ok(Self {
+            id,
+            ssid,
+            interface,
+            security,
+            psk,
+            hidden,
+            ip,
+            autoconnect,
+            autoconnect_priority,
+        })
     }
 }
 
@@ -624,24 +666,32 @@ pub struct UsbGadget {
 }
 
 impl UsbGadget {
-    fn read(reader: &mut Reader<'_>, ctx: &mut Context<'_>, hostname: &str) -> Result<Option<Self>> {
+    fn read(
+        reader: &mut Reader<'_>,
+        ctx: &mut Context<'_>,
+        hostname: &str,
+    ) -> Result<Option<Self>> {
         if !reader.bool_or("enabled", false)? {
             reader.finish()?;
             return Ok(None);
         }
-        let function = match reader.enumerated("function", "ecm", &["ecm", "ncm", "rndis"])?.as_str() {
-            "ecm" => GadgetFunction::Ecm,
-            "ncm" => GadgetFunction::Ncm,
-            _ => GadgetFunction::Rndis,
-        };
+        let function =
+            match reader.enumerated("function", "ecm", &["ecm", "ncm", "rndis"])?.as_str() {
+                "ecm" => GadgetFunction::Ecm,
+                "ncm" => GadgetFunction::Ncm,
+                _ => GadgetFunction::Rndis,
+            };
         let interface = reader.string_or("interface", "usb0")?;
-        net::validate_interface(&interface).map_err(|err| reader.key_error("interface", err.message))?;
+        net::validate_interface(&interface)
+            .map_err(|err| reader.key_error("interface", err.message))?;
 
         let address_text = reader.string_or("address", "10.55.0.1/24")?;
-        let address = Ipv4Cidr::parse(&address_text).map_err(|err| reader.key_error("address", err.message))?;
+        let address = Ipv4Cidr::parse(&address_text)
+            .map_err(|err| reader.key_error("address", err.message))?;
         let peer_address = match reader.opt_string("peer_address")? {
             Some(text) => {
-                let peer = net::parse_ipv4(&text).map_err(|err| reader.key_error("peer_address", err.message))?;
+                let peer = net::parse_ipv4(&text)
+                    .map_err(|err| reader.key_error("peer_address", err.message))?;
                 if !address.contains(peer) {
                     return Err(reader.key_error("peer_address", format!("is outside {address}")));
                 }
@@ -655,11 +705,15 @@ impl UsbGadget {
 
         let seed_base = format!("{hostname}/{interface}");
         let device_mac = match reader.opt_string("device_mac")? {
-            Some(text) => MacAddr::parse(&text).map_err(|err| reader.key_error("device_mac", err.message))?,
+            Some(text) => {
+                MacAddr::parse(&text).map_err(|err| reader.key_error("device_mac", err.message))?
+            }
             None => MacAddr::derive(format!("{seed_base}/device").as_bytes()),
         };
         let host_mac = match reader.opt_string("host_mac")? {
-            Some(text) => MacAddr::parse(&text).map_err(|err| reader.key_error("host_mac", err.message))?,
+            Some(text) => {
+                MacAddr::parse(&text).map_err(|err| reader.key_error("host_mac", err.message))?
+            }
             None => MacAddr::derive(format!("{seed_base}/host").as_bytes()),
         };
         if device_mac == host_mac {
@@ -685,7 +739,9 @@ impl UsbGadget {
         let manufacturer = reader.string_or("manufacturer", "Raspberry Pi")?;
         let product = reader.string_or("product", "rpi-provision USB gadget")?;
         let serial = reader.string_or("serial", hostname)?;
-        for (key, value) in [("manufacturer", &manufacturer), ("product", &product), ("serial", &serial)] {
+        for (key, value) in
+            [("manufacturer", &manufacturer), ("product", &product), ("serial", &serial)]
+        {
             if value.is_empty() || value.bytes().any(|b| !(0x20..=0x7e).contains(&b)) {
                 return Err(reader.key_error(key, "must be non-empty printable ASCII"));
             }
@@ -856,21 +912,23 @@ impl Hardware {
         let cmdline_append = reader.string_list("cmdline_append")?;
         let cmdline_remove = reader.string_list("cmdline_remove")?;
 
-        for (key, values) in [
-            ("overlays", &overlays),
-            ("dtparams", &dtparams),
-            ("config_extra", &config_extra),
-        ] {
+        for (key, values) in
+            [("overlays", &overlays), ("dtparams", &dtparams), ("config_extra", &config_extra)]
+        {
             for value in values {
                 if value.contains('\n') || value.contains('\r') {
                     return Err(reader.key_error(key, "entries must be single lines"));
                 }
             }
         }
-        for (key, values) in [("cmdline_append", &cmdline_append), ("cmdline_remove", &cmdline_remove)] {
+        for (key, values) in
+            [("cmdline_append", &cmdline_append), ("cmdline_remove", &cmdline_remove)]
+        {
             for value in values {
                 if value.is_empty() || value.bytes().any(|b| b.is_ascii_whitespace()) {
-                    return Err(reader.key_error(key, "entries must be single whitespace-free tokens"));
+                    return Err(
+                        reader.key_error(key, "entries must be single whitespace-free tokens")
+                    );
                 }
             }
         }
@@ -910,7 +968,9 @@ impl Provisioning {
     fn read(reader: &mut Reader<'_>) -> Result<Self> {
         let boot_mount = reader.string_or("boot_mount", "/boot/firmware")?;
         if !boot_mount.starts_with('/') || boot_mount.ends_with('/') {
-            return Err(reader.key_error("boot_mount", "must be an absolute path without a trailing slash"));
+            return Err(
+                reader.key_error("boot_mount", "must be an absolute path without a trailing slash")
+            );
         }
         let runner_dir = reader.string_or("runner_dir", "rpi-provision")?;
         if runner_dir.is_empty()
