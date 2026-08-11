@@ -6,24 +6,39 @@ use std::fmt;
 pub struct Error {
     pub message: String,
     pub position: Option<(usize, usize)>,
+    /// The specification file the error came from, when it was read from disk.
+    pub file: Option<String>,
 }
 
 impl Error {
     pub fn new(message: impl Into<String>) -> Self {
-        Self { message: message.into(), position: None }
+        Self { message: message.into(), position: None, file: None }
     }
 
+    /// Values injected by `--set` carry no source position; line 0 marks them.
     pub fn at(line: usize, col: usize, message: impl Into<String>) -> Self {
-        Self { message: message.into(), position: Some((line, col)) }
+        Self {
+            message: message.into(),
+            position: (line > 0).then_some((line, col)),
+            file: None,
+        }
+    }
+
+    pub fn in_file(mut self, file: impl Into<String>) -> Self {
+        self.file = Some(file.into());
+        self
     }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.position {
-            Some((line, col)) => write!(f, "line {line}, column {col}: {}", self.message),
-            None => f.write_str(&self.message),
+        if let Some(file) = &self.file {
+            write!(f, "{file}: ")?;
         }
+        if let Some((line, col)) = self.position {
+            write!(f, "line {line}, column {col}: ")?;
+        }
+        f.write_str(&self.message)
     }
 }
 

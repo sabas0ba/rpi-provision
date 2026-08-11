@@ -1,0 +1,78 @@
+# A development board: static wired address, Wi-Fi fallback, a USB gadget
+# link for console-free access, and the usual peripheral buses enabled.
+#
+# Secrets are read from the environment, so this file is safe to commit:
+#
+#   export RPI_PASSWORD_HASH="$(openssl passwd -6)"
+#   export WIFI_PSK_HOME="..."
+#   rpi-provision apply examples/development.toml --boot /media/$USER/bootfs
+
+[meta]
+schema_version = 1
+target = "pi5"
+description = "Bench development board"
+
+[system]
+hostname = "dev-pi-01"
+timezone = "Asia/Tokyo"
+locale = "en_US.UTF-8"
+keymap = "jp"
+
+[user]
+name = "engineer"
+password_hash = { env = "RPI_PASSWORD_HASH" }
+authorized_keys_files = ["authorized_keys"]
+groups = ["gpio", "i2c", "spi", "dialout", "plugdev"]
+sudo = "nopasswd"
+shell = "/bin/bash"
+
+[ssh]
+enabled = true
+password_authentication = false
+permit_root_login = "no"
+port = 22
+
+[network]
+wifi_country = "JP"
+
+[[network.ethernet]]
+id = "eth0-static"
+interface = "eth0"
+method = "manual"
+address = "192.168.1.50/24"
+gateway = "192.168.1.1"
+dns = ["192.168.1.1", "1.1.1.1"]
+autoconnect_priority = 100
+
+[[network.wifi]]
+id = "home"
+ssid = "MySSID"
+psk = { env = "WIFI_PSK_HOME" }
+autoconnect_priority = 50
+
+# Reachable at 10.55.0.1 over the USB-C port. Power the board through the
+# GPIO header when this link is in use: on Raspberry Pi 5 the USB-C connector
+# is also the power input.
+[network.usb_gadget]
+enabled = true
+function = "ecm"
+interface = "usb0"
+address = "10.55.0.1/24"
+peer_address = "10.55.0.2"
+
+# dtparam=uart0=on exposes GPIO 14/15 as /dev/ttyAMA0 with no console
+# attached, which is what a UART peripheral needs.
+[hardware.uart]
+enabled = true
+console = false
+
+[hardware.i2c]
+enabled = true
+baudrate = 400000
+
+[hardware.spi]
+enabled = true
+
+[hardware]
+pcie_gen = 3
+overlays = ["disable-bt"]

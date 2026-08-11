@@ -102,9 +102,7 @@ pub fn load_file(path: &Path, options: &LoadOptions<'_>) -> Result<Loaded> {
     if options.base_dir != Path::new(".") {
         options_with_base.base_dir = options.base_dir.clone();
     }
-    load_str(&source, &options_with_base).map_err(|err| {
-        Error { message: format!("{}: {}", path.display(), err.message), position: err.position }
-    })
+    load_str(&source, &options_with_base).map_err(|err| err.in_file(path.display().to_string()))
 }
 
 /// Serialise a document to a canonical byte string for digesting.
