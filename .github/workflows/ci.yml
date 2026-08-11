@@ -1,0 +1,101 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  RUSTFLAGS: -D warnings
+
+# Actions are pinned by commit SHA. Update them deliberately, never by tag.
+jobs:
+  check:
+    name: format, lint and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: 1.95.0
+          components: rustfmt, clippy
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: cargo test
+        run: cargo test --all-features
+      - name: no external dependencies
+        shell: bash
+        run: |
+          # The workspace must stay dependency free; Cargo.lock lists only the
+          # workspace members themselves.
+          cargo metadata --format-version 1 --no-deps >/dev/null
+          if grep -qE '^\[\[package\]\]' Cargo.lock; then
+            foreign=$(grep -A1 '^\[\[package\]\]' Cargo.lock \
+              | grep '^name = ' \
+              | grep -vcE 'rpi-provision' || true)
+            if [ "$foreign" != "0" ]; then
+              echo "unexpected external dependencies in Cargo.lock" >&2
+              exit 1
+            fi
+          fi
+
+  shell:
+    name: shellcheck the generated scripts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: 1.95.0
+      - name: install shellcheck
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y shellcheck
+      - name: render the example specifications
+        env:
+          RPI_PASSWORD_HASH: $6$rounds=4096$ciexample$0123456789abcdefghijklmnopqrstuvwxyz
+          WIFI_PSK_HOME: continuous-integration-placeholder
+        run: |
+          cargo run --release -- render examples/development.toml --out .tmp/rendered
+          cargo run --release -- render examples/minimal.toml --out .tmp/rendered-minimal
+      - name: shellcheck
+        run: |
+          find .tmp -name '*.sh' -o -name 'rpi-provision-gadget' \
+            | xargs shellcheck --shell=sh --severity=style
+      - name: dash syntax check
+        run: find .tmp -name '*.sh' -o -name 'rpi-provision-gadget' | xargs -n1 dash -n
+
+  build:
+    name: release binary (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04, target: aarch64-unknown-linux-musl }
+          - { os: windows-2022, target: x86_64-pc-windows-msvc }
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: 1.95.0
+          targets: ${{ matrix.target }}
+      - name: install the cross linker
+        if: startsWith(matrix.target, 'aarch64-unknown-linux')
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            gcc-aarch64-linux-gnu musl-tools
+      - name: build
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build --release --locked --target ${{ matrix.target }}

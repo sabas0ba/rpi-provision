@@ -1,0 +1,6 @@
+/target
+/.tmp/
+*.img
+*.img.xz
+secrets/
+!secrets/.gitkeep
