@@ -1,3 +1,8 @@
+---
+title: Specification
+nav_id: specification
+---
+
 # Specification reference
 
 A specification is a TOML document. Unknown keys are an error, so a typo is

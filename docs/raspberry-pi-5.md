@@ -1,3 +1,8 @@
+---
+title: Raspberry Pi 5 notes
+nav_id: pi5
+---
+
 # Raspberry Pi 5 specific behaviour
 
 Several things changed between Raspberry Pi 4 and 5 in ways that make

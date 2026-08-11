@@ -137,13 +137,19 @@ Details in `docs/first-boot.md`.
 
 ## Documentation
 
-| File | Contents |
+The full documentation is published at
+<https://sabas0ba.github.io/rpi-provision/>, and its source is `docs/` in this
+repository — every page below reads equally well from either.
+
+| Page | Contents |
 | --- | --- |
-| `docs/specification.md` | Every key, its type, default and constraints |
-| `docs/first-boot.md` | What runs on the device, and how to debug it |
-| `docs/raspberry-pi-5.md` | Model specific behaviour and its sources |
-| `docs/windows.md` | Using the tool from Windows |
-| `docs/adr/` | Architecture decision records |
+| [Usage](docs/usage.md) | Every command and option, secrets, run-time overrides |
+| [Examples](docs/examples.md) | The two example specifications, walked through |
+| [Specification](docs/specification.md) | Every key, its type, default and constraints |
+| [First boot](docs/first-boot.md) | What runs on the device, and how to debug it |
+| [Windows](docs/windows.md) | Using the tool from Windows |
+| [Raspberry Pi 5](docs/raspberry-pi-5.md) | Model specific behaviour and its sources |
+| [Design decisions](docs/adr/) | Architecture decision records |
 
 ## Development
 

@@ -1,3 +1,8 @@
+---
+title: ADR 0001 · Zero dependencies
+nav_id: adr
+---
+
 # 0001. The workspace carries no external dependencies
 
 Status: accepted
