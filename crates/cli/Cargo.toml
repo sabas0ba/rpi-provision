@@ -1,0 +1,18 @@
+[package]
+name = "rpi-provision"
+description = "Declarative first-boot provisioning for Raspberry Pi 5 SD cards"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "rpi-provision"
+path = "src/main.rs"
+
+[dependencies]
+rpi-provision-spec = { path = "../spec" }
+rpi-provision-render = { path = "../render" }
+rpi-provision-apply = { path = "../apply" }
+rpi-provision-toml = { path = "../toml" }

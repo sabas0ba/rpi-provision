@@ -1,0 +1,10 @@
+[package]
+name = "rpi-provision-apply"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rpi-provision-render = { path = "../render" }
