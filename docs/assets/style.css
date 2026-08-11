@@ -1,0 +1,360 @@
+/* rpi-provision documentation.
+ *
+ * No web fonts and no framework: system fonts, a two-column shell that
+ * collapses on narrow screens, and a palette that follows the reader's
+ * light or dark preference. */
+
+:root {
+  --bg: #ffffff;
+  --bg-sunken: #f6f7f9;
+  --bg-code: #f4f5f7;
+  --fg: #1c2024;
+  --fg-muted: #5b6570;
+  --border: #dfe3e8;
+  --accent: #9a2c3f;
+  --accent-soft: #fbeff1;
+  --measure: 46rem;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, "Noto Sans", "Noto Sans JP", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171a;
+    --bg-sunken: #1b1f23;
+    --bg-code: #1e2328;
+    --fg: #e4e7ea;
+    --fg-muted: #9aa4ae;
+    --border: #2c333a;
+    --accent: #f2a0af;
+    --accent-soft: #2a1d21;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-text-size-adjust: 100%;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+}
+
+.skip-link:focus {
+  left: 1rem;
+  top: 0.6rem;
+  z-index: 10;
+  padding: 0.5rem 0.9rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* ---------------------------------------------------------- masthead */
+
+.masthead {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sunken);
+}
+
+.masthead-inner {
+  max-width: 74rem;
+  margin: 0 auto;
+  padding: 1.1rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.brand {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.75rem;
+  align-items: baseline;
+}
+
+.brand-name {
+  font-family: var(--mono);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brand-tagline,
+.repo-link {
+  font-size: 0.86rem;
+  color: var(--fg-muted);
+}
+
+.repo-link {
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.repo-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------------- shell */
+
+.shell {
+  max-width: 74rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 3rem;
+  align-items: start;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  padding: 2.25rem 0 2rem;
+  max-height: 100vh;
+  overflow-y: auto;
+}
+
+.nav-section {
+  margin: 1.5rem 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.nav-section:first-child {
+  margin-top: 0;
+}
+
+.nav-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-list a {
+  display: block;
+  padding: 0.28rem 0.6rem;
+  margin-left: -0.6rem;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.94rem;
+}
+
+.nav-list a:hover {
+  background: var(--bg-sunken);
+  color: var(--accent);
+}
+
+.nav-list a[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+main {
+  padding: 2.25rem 0 4rem;
+  min-width: 0;
+  max-width: var(--measure);
+}
+
+/* ------------------------------------------------------------ typography */
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  scroll-margin-top: 1rem;
+}
+
+h1 {
+  font-size: 2.1rem;
+  margin: 0 0 0.75rem;
+}
+
+h2 {
+  font-size: 1.4rem;
+  margin: 2.75rem 0 0.75rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--border);
+}
+
+h3 {
+  font-size: 1.1rem;
+  margin: 2rem 0 0.5rem;
+}
+
+h4 {
+  font-size: 0.98rem;
+  margin: 1.5rem 0 0.4rem;
+}
+
+p,
+ul,
+ol {
+  margin: 0 0 1rem;
+}
+
+li + li {
+  margin-top: 0.25rem;
+}
+
+blockquote {
+  margin: 1.25rem 0;
+  padding: 0.1rem 1.1rem;
+  border-left: 3px solid var(--border);
+  color: var(--fg-muted);
+}
+
+hr {
+  height: 1px;
+  border: 0;
+  margin: 2.5rem 0;
+  background: var(--border);
+}
+
+/* The opening paragraph of a page reads as a summary, with no need for the
+ * author to mark it up as one. */
+main > h1 + p {
+  font-size: 1.1rem;
+  color: var(--fg-muted);
+  margin-bottom: 1.75rem;
+}
+
+/* ------------------------------------------------------------------ code */
+
+code,
+kbd,
+samp {
+  font-family: var(--mono);
+  font-size: 0.87em;
+}
+
+:not(pre) > code {
+  padding: 0.12em 0.36em;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow-wrap: break-word;
+}
+
+pre {
+  margin: 0 0 1.25rem;
+  padding: 0.9rem 1.1rem;
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+/* ---------------------------------------------------------------- tables */
+
+/* The specification tables are wider than the measure; let them scroll
+ * inside their own box rather than pushing the page sideways. */
+table {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0 0 1.25rem;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+th,
+td {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: var(--bg-sunken);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+td code {
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- colophon */
+
+.colophon {
+  border-top: 1px solid var(--border);
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  font-size: 0.88rem;
+}
+
+.colophon p {
+  max-width: 74rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem;
+}
+
+/* ------------------------------------------------------------ narrow */
+
+@media (max-width: 52rem) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .sidebar {
+    position: static;
+    max-height: none;
+    padding: 1.5rem 0 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  main {
+    padding-top: 1.75rem;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+  }
+}

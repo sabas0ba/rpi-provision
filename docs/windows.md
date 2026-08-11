@@ -1,3 +1,8 @@
+---
+title: Windows
+nav_id: windows
+---
+
 # Using rpi-provision from Windows
 
 The tool writes only to the FAT32 boot partition, which Windows mounts as an

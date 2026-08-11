@@ -1,3 +1,8 @@
+---
+title: ADR 0002 · Boot partition only
+nav_id: adr
+---
+
 # 0002. Write only to the FAT boot partition
 
 Status: accepted

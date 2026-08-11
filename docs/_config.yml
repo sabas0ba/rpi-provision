@@ -1,0 +1,53 @@
+# GitHub Pages configuration.
+#
+# The site is built from this directory by GitHub Pages itself
+# (Settings -> Pages -> Deploy from a branch -> main, /docs). There is no
+# theme gem and no Gemfile: the layout and the stylesheet in this directory
+# are the whole of it, which keeps the documentation as free of dependencies
+# as the workspace it documents.
+
+title: rpi-provision
+tagline: Declarative first-boot provisioning for Raspberry Pi 5 SD cards
+description: >-
+  Configure the account, SSH, networking, the USB gadget link and the
+  peripheral buses on a Raspberry Pi 5 SD card before it is ever powered on,
+  by writing to the FAT boot partition and nothing else.
+
+url: https://sabas0ba.github.io
+baseurl: /rpi-provision
+repository: sabas0ba/rpi-provision
+
+# `.md` links between pages keep working both on GitHub and on the site.
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: false
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+
+# The order here is the order a reader meets the material: what the tool
+# does, how to drive it, worked examples, and only then the reference.
+nav:
+  - section: Start here
+    links:
+      - { id: home, title: What it does, path: / }
+      - { id: usage, title: Usage, path: /usage.html }
+      - { id: examples, title: Examples, path: /examples.html }
+  - section: Reference
+    links:
+      - { id: specification, title: Specification, path: /specification.html }
+      - { id: first-boot, title: First boot on the device, path: /first-boot.html }
+      - { id: windows, title: Windows, path: /windows.html }
+      - { id: pi5, title: Raspberry Pi 5 notes, path: /raspberry-pi-5.html }
+  - section: Background
+    links:
+      - { id: adr, title: Design decisions, path: /adr/ }
+
+exclude:
+  - README.md

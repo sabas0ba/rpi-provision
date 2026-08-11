@@ -1,3 +1,8 @@
+---
+title: First boot on the device
+nav_id: first-boot
+---
+
 # What happens on the device
 
 `apply` writes a payload to the boot partition and adds three tokens to
