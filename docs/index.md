@@ -160,8 +160,9 @@ $ curl -LO https://github.com/sabas0ba/rpi-provision/releases/download/$tag/SHA2
 $ sha256sum --check --ignore-missing SHA256SUMS
 ```
 
-The desktop application is not among them yet: it is built from source, and
-[its own page](gui.md) says what that needs. To build either from source:
+The [desktop application](gui.md) is on the same release, as a `.deb` for
+Debian and Ubuntu and an `.msi` for Windows. To build either from source
+instead:
 
 ```console
 $ cargo build --release --locked

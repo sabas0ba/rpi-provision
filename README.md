@@ -49,26 +49,28 @@ $ sha256sum --check --ignore-missing SHA256SUMS
 $ install -m 0755 rpi-provision-$tag-x86_64-unknown-linux-musl ~/.local/bin/rpi-provision
 ```
 
-The musl builds are static, so they need nothing installed to run. To build
-from source instead:
+The musl builds are static, so they need nothing installed to run.
+
+The desktop application is on the same release, as a `.deb` for Debian and
+Ubuntu and an `.msi` for Windows. The package declares the webview it needs,
+so `apt` pulls it in:
 
 ```console
-$ cargo build --release --locked
-$ ./target/release/rpi-provision --help
+$ sudo apt install ./rpi-provision-gui-$tag-deb.deb
 ```
 
-The workspace has **no external dependencies**, so the build needs nothing but
-a Rust toolchain. See `docs/adr/0001-zero-dependencies.md`.
-
-There is also a desktop application, in a workspace of its own so that Tauri's
-dependencies stay out of the one above:
+To build either from source instead:
 
 ```console
-$ cargo build --release --manifest-path gui/Cargo.toml
+$ cargo build --release --locked                      # the command line
+$ cargo build --release --manifest-path gui/Cargo.toml  # the window
 ```
 
-It needs `libwebkit2gtk-4.1-dev` and `libgtk-3-dev` on Debian and Ubuntu. See
-`docs/gui.md` and `docs/adr/0003-gui-in-its-own-workspace.md`.
+The workspace has **no external dependencies**, so the command line needs
+nothing but a Rust toolchain. See `docs/adr/0001-zero-dependencies.md`. The
+window is a workspace of its own and needs `libwebkit2gtk-4.1-dev` and
+`libgtk-3-dev` on Debian and Ubuntu; see `docs/gui.md` and
+`docs/adr/0003-gui-in-its-own-workspace.md`.
 
 ## Usage
 

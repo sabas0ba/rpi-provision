@@ -9,6 +9,18 @@ A window over the same three crates the command line drives, for the times
 when reading a diff in a terminal is not what you want. Everything it can do,
 `rpi-provision` can do; it holds no logic of its own.
 
+Every [tagged release](https://github.com/sabas0ba/rpi-provision/releases)
+carries it as a `.deb` for Debian and Ubuntu and an `.msi` for Windows:
+
+```console
+$ sudo apt install ./rpi-provision-gui-v1.0.0-deb.deb
+$ rpi-provision-gui
+```
+
+The package depends on `libwebkit2gtk-4.1-0` and `libgtk-3-0`, so `apt` pulls
+the webview in rather than leaving you with something that installs and then
+will not start. Or build it yourself:
+
 ```console
 $ cargo build --release --manifest-path gui/Cargo.toml
 $ ./gui/target/release/rpi-provision-gui
@@ -69,6 +81,11 @@ It therefore needs system packages that the rest of the project does not:
 
 Nothing about the command line changes: `cargo build` at the root still needs
 only a Rust toolchain, and never builds any of the above.
+
+There is no macOS package yet. The application builds there — Tauri uses the
+system webview and needs nothing extra — but nothing in the release workflow
+produces or tests a `.dmg`, so shipping one would be a claim nobody has
+checked.
 
 ## What it deliberately does not do
 

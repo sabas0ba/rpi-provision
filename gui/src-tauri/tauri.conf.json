@@ -34,6 +34,12 @@
       "icons/128x128.png",
       "icons/icon.png",
       "icons/icon.ico"
-    ]
+    ],
+    "shortDescription": "Declarative first-boot provisioning for Raspberry Pi 5 SD cards",
+    "longDescription": "A window over rpi-provision: find a mounted boot partition, edit a specification and watch it validate, preview exactly what would change, then apply it, undo it, or snapshot the card and put the snapshot back. It drives the same crates the command line does, so the two cannot disagree about what a specification means.",
+    "category": "DeveloperTool",
+    "publisher": "sabas0ba",
+    "homepage": "https://sabas0ba.github.io/rpi-provision/",
+    "licenseFile": "../../LICENSE"
   }
 }
