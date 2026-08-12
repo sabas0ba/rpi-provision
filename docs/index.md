@@ -73,10 +73,11 @@ $ rpi-provision diff pi.toml --boot /media/$USER/bootfs
 ```
 
 **5. Apply.** The change set is printed and confirmed before anything is
-written:
+written. `--backup` snapshots the whole partition first, so a bad card is a
+`restore` away rather than a fresh run of Imager:
 
 ```console
-$ rpi-provision apply pi.toml --boot /media/$USER/bootfs
+$ rpi-provision apply pi.toml --boot /media/$USER/bootfs --backup ./before-apply
 ```
 
 Eject the card, boot the board, and connect:
@@ -86,7 +87,9 @@ $ ssh engineer@pi-minimal.local
 ```
 
 Applying twice is a no-op, so a card can be re-provisioned as often as you
-like. The full command set is on the [usage](usage.md) page.
+like. If something does go wrong, `revert` undoes what the tool added and
+`restore` puts a whole snapshot back. The full command set is on the
+[usage](usage.md) page.
 
 ## Examples
 
@@ -162,3 +165,6 @@ during the build. The reasoning is in
 - `rpi-provision` refuses to write to a directory that is not a Raspberry Pi 5
   boot partition unless `--allow-unverified-boot` is given.
 - Diffs never print secret content.
+- A snapshot taken with `backup` after an `apply` contains the payload, and so
+  the Wi-Fi key and password hash, in an ordinary directory. Snapshot before
+  applying, or treat the directory as sensitive.

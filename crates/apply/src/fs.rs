@@ -14,6 +14,11 @@ pub trait BootFs {
     fn read(&self, relative: &str) -> io::Result<Vec<u8>>;
     fn write(&mut self, relative: &str, contents: &[u8], executable: bool) -> io::Result<()>;
     fn remove(&mut self, relative: &str) -> io::Result<()>;
+    /// Every file below the root, as relative `/`-separated paths, sorted.
+    ///
+    /// Directories are not listed in their own right: an empty one carries no
+    /// information that a snapshot needs to preserve.
+    fn list(&self) -> io::Result<Vec<String>>;
     /// A description used in messages, e.g. the mount point.
     fn describe(&self) -> String;
 }
@@ -112,9 +117,46 @@ impl BootFs for RealBootFs {
         Ok(())
     }
 
+    fn list(&self) -> io::Result<Vec<String>> {
+        let mut found = Vec::new();
+        if self.root.is_dir() {
+            walk(&self.root, &mut String::new(), &mut found)?;
+        }
+        found.sort();
+        Ok(found)
+    }
+
     fn describe(&self) -> String {
         self.root.display().to_string()
     }
+}
+
+/// Recursive listing, depth first, with `/` as the separator on every
+/// platform so that a snapshot taken on Windows restores on Linux.
+fn walk(directory: &Path, prefix: &mut String, found: &mut Vec<String>) -> io::Result<()> {
+    for entry in std::fs::read_dir(directory)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{} has a name that is not UTF-8", entry.path().display()),
+            ));
+        };
+        let relative =
+            if prefix.is_empty() { name.to_string() } else { format!("{prefix}/{name}") };
+        // `file_type` does not follow symlinks; a link is copied as whatever
+        // it points at rather than being skipped, which is what a snapshot of
+        // a FAT partition wants (FAT has no links, but a rendered directory
+        // on an ext4 host might).
+        if entry.metadata()?.is_dir() {
+            let mut nested = relative;
+            walk(&entry.path(), &mut nested, found)?;
+        } else {
+            found.push(relative);
+        }
+    }
+    Ok(())
 }
 
 /// FAT has no permission bits, so this is a no-op there; it matters when the
@@ -192,6 +234,11 @@ impl BootFs for MemBootFs {
         self.files.remove(relative);
         self.executable.remove(relative);
         Ok(())
+    }
+
+    fn list(&self) -> io::Result<Vec<String>> {
+        // A BTreeMap is already in sorted order.
+        Ok(self.files.keys().cloned().collect())
     }
 
     fn describe(&self) -> String {

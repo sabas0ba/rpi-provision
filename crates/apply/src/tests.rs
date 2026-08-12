@@ -329,3 +329,149 @@ fn our_own_runner_is_not_mistaken_for_a_foreign_one() {
         "rpi-provision/firstrun.sh lives below the runner directory, not at the root"
     );
 }
+
+// ---------------------------------------------------------------- snapshots
+
+use crate::backup::{self, Manifest, MANIFEST_NAME};
+
+/// Take a snapshot of `source` into a fresh in-memory directory.
+fn snapshot_of(source: &dyn BootFs) -> (MemBootFs, Manifest) {
+    let mut destination = MemBootFs::new();
+    let manifest = backup::create(
+        source,
+        &mut destination,
+        "rpi-provision 0.0.0-test",
+        "2026-08-12T00:00:00Z",
+    )
+    .unwrap();
+    (destination, manifest)
+}
+
+#[test]
+fn a_snapshot_records_every_file() {
+    let card = card();
+    let (stored, manifest) = snapshot_of(&card);
+
+    assert_eq!(manifest.entries.len(), card.paths().len());
+    assert_eq!(manifest.total_bytes(), card.files.values().map(|v| v.len() as u64).sum::<u64>());
+    for path in card.paths() {
+        assert_eq!(stored.files.get(path), card.files.get(path), "{path} was not copied verbatim");
+    }
+    // The manifest itself is in the snapshot but not one of its entries.
+    assert!(stored.exists(MANIFEST_NAME));
+    assert!(!manifest.entries.iter().any(|entry| entry.path == MANIFEST_NAME));
+}
+
+#[test]
+fn a_snapshot_survives_a_round_trip_through_its_manifest() {
+    let (_, manifest) = snapshot_of(&card());
+    let reparsed = Manifest::parse(&manifest.render()).unwrap();
+    assert_eq!(reparsed, manifest);
+}
+
+#[test]
+fn restoring_undoes_an_apply() {
+    let original = card();
+    let (stored, manifest) = snapshot_of(&original);
+
+    let mut fs = card();
+    execute(&plan(), &mut fs).unwrap();
+    assert_ne!(fs.files, original.files, "the apply must have changed something");
+
+    let changes = backup::restore_changes(&stored, &manifest, &fs).unwrap();
+    backup::restore(&stored, &changes, &mut fs).unwrap();
+    assert_eq!(fs.files, original.files, "the card must be byte-for-byte as it was");
+}
+
+#[test]
+fn restoring_removes_files_that_postdate_the_snapshot() {
+    let (stored, manifest) = snapshot_of(&card());
+    let mut fs = card();
+    fs.put("rpi-provision/firstrun.sh", "#!/bin/sh\n");
+    fs.put("stray.txt", "written later\n");
+
+    let changes = backup::restore_changes(&stored, &manifest, &fs).unwrap();
+    let deleted: Vec<&str> = changes
+        .iter()
+        .filter(|change| change.kind == ChangeKind::Delete)
+        .map(|change| change.path.as_str())
+        .collect();
+    assert_eq!(deleted, vec!["rpi-provision/firstrun.sh", "stray.txt"]);
+
+    let summary = backup::restore(&stored, &changes, &mut fs).unwrap();
+    assert_eq!(summary.deleted, 2);
+    assert!(!fs.exists("stray.txt"));
+}
+
+#[test]
+fn restoring_an_untouched_card_changes_nothing() {
+    let (stored, manifest) = snapshot_of(&card());
+    let fs = card();
+    let changes = backup::restore_changes(&stored, &manifest, &fs).unwrap();
+    assert!(changes.iter().all(|change| change.kind == ChangeKind::Unchanged), "{changes:?}");
+}
+
+#[test]
+fn a_snapshot_refuses_a_destination_that_is_not_empty() {
+    let mut destination = MemBootFs::new();
+    destination.put("something.txt", "already here\n");
+    let error = backup::create(&card(), &mut destination, "g", "t").unwrap_err();
+    assert!(error.message.contains("is not empty"), "{}", error.message);
+}
+
+#[test]
+fn a_snapshot_refuses_a_card_that_would_collide_with_the_manifest() {
+    let mut card = card();
+    card.put(MANIFEST_NAME, "not ours\n");
+    let error = backup::create(&card, &mut MemBootFs::new(), "g", "t").unwrap_err();
+    assert!(error.message.contains("already contains"), "{}", error.message);
+}
+
+#[test]
+fn an_incomplete_snapshot_is_refused() {
+    // A snapshot writes its manifest last, so this is what an interrupted
+    // run leaves behind.
+    let mut stored = MemBootFs::new();
+    stored.put("config.txt", STOCK_CONFIG);
+    let error = backup::read_manifest(&stored).unwrap_err();
+    assert!(error.message.contains("not a complete snapshot"), "{}", error.message);
+}
+
+#[test]
+fn a_damaged_snapshot_is_refused_before_anything_is_written() {
+    let (mut stored, manifest) = snapshot_of(&card());
+    // Same length, different content: the kind of damage a size check alone
+    // would wave through.
+    let mut damaged = stored.files["config.txt"].clone();
+    damaged[0] ^= 0xff;
+    stored.files.insert("config.txt".to_string(), damaged);
+
+    let error = backup::restore_changes(&stored, &manifest, &card()).unwrap_err();
+    assert!(error.message.contains("does not match its digest"), "{}", error.message);
+}
+
+#[test]
+fn a_truncated_file_is_refused() {
+    let (mut stored, mut manifest) = snapshot_of(&card());
+    stored.put("config.txt", STOCK_CONFIG);
+    // Claim a size the file does not have.
+    for entry in &mut manifest.entries {
+        if entry.path == "config.txt" {
+            entry.bytes += 1;
+        }
+    }
+    let error = backup::restore_changes(&stored, &manifest, &card()).unwrap_err();
+    assert!(error.message.contains("the snapshot is damaged"), "{}", error.message);
+}
+
+#[test]
+fn a_snapshot_of_a_snapshot_is_identical() {
+    // Snapshots are plain directories, so taking one of a restored card must
+    // produce the same manifest entries.
+    let (first, manifest) = snapshot_of(&card());
+    let mut card = card();
+    let changes = backup::restore_changes(&first, &manifest, &card).unwrap();
+    backup::restore(&first, &changes, &mut card).unwrap();
+    let (_, again) = snapshot_of(&card);
+    assert_eq!(again.entries, manifest.entries);
+}

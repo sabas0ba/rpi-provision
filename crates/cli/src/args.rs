@@ -18,13 +18,18 @@ COMMANDS:
     diff     <SPEC> --boot PATH  Show what apply would change
     apply    <SPEC> --boot PATH  Write the provisioning payload to a card
     revert   <SPEC> --boot PATH  Undo a previous apply
+    backup   --out DIR           Snapshot the --boot partition into DIR
+    restore  --from DIR          Put the snapshot in DIR back onto --boot
     detect                       List mounted Raspberry Pi boot partitions
     help                         Show this message
     version                      Show the version
 
 OPTIONS:
     --boot PATH                  Mount point of the FAT boot partition
-    --out DIR                    Output directory for `render`
+    --out DIR                    Output directory for `render` and `backup`
+    --from DIR                   Snapshot directory for `restore`
+    --backup DIR                 Snapshot the boot partition into DIR before
+                                 `apply` writes to it
     --set PATH=VALUE             Override a value in the specification.
                                  Repeatable. Note that the value is visible in
                                  the process list; use --set-secret instead for
@@ -42,6 +47,7 @@ OPTIONS:
 
 EXAMPLES:
     rpi-provision validate pi.toml
+    rpi-provision backup --boot /media/user/bootfs --out ./bootfs-backup
     rpi-provision diff pi.toml --boot /media/user/bootfs
     RPI_PASSWORD_HASH=\"$(openssl passwd -6)\" \\
         rpi-provision apply pi.toml --boot /media/user/bootfs --yes
@@ -54,6 +60,8 @@ pub enum Command {
     Diff { spec: PathBuf, boot: PathBuf },
     Apply { spec: PathBuf, boot: PathBuf },
     Revert { spec: PathBuf, boot: PathBuf },
+    Backup { boot: PathBuf, out: PathBuf },
+    Restore { boot: PathBuf, from: PathBuf },
     Detect,
     Help,
     Version,
@@ -68,6 +76,8 @@ pub struct Options {
     pub verbose: bool,
     pub allow_unverified_boot: bool,
     pub ignore_conflicts: bool,
+    /// Take a snapshot into this directory before `apply` writes.
+    pub backup: Option<PathBuf>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -100,6 +110,7 @@ where
     let mut positional: Vec<String> = Vec::new();
     let mut boot: Option<PathBuf> = None;
     let mut out: Option<PathBuf> = None;
+    let mut from: Option<PathBuf> = None;
 
     let mut index = 0;
     while index < arguments.len() {
@@ -115,6 +126,8 @@ where
         match argument {
             "--boot" => boot = Some(PathBuf::from(take_value("--boot")?)),
             "--out" => out = Some(PathBuf::from(take_value("--out")?)),
+            "--from" => from = Some(PathBuf::from(take_value("--from")?)),
+            "--backup" => options.backup = Some(PathBuf::from(take_value("--backup")?)),
             "--set" => options.sets.push(take_value("--set")?),
             "--set-secret" => options.set_secrets.push(take_value("--set-secret")?),
             "-y" | "--yes" => options.yes = true,
@@ -170,6 +183,24 @@ where
             spec: spec(rest)?,
             boot: boot.ok_or_else(|| UsageError("`revert` needs --boot PATH".into()))?,
         },
+        "backup" => {
+            if !rest.is_empty() {
+                return error("`backup` takes no specification file, only --boot and --out");
+            }
+            Command::Backup {
+                boot: boot.ok_or_else(|| UsageError("`backup` needs --boot PATH".into()))?,
+                out: out.ok_or_else(|| UsageError("`backup` needs --out DIR".into()))?,
+            }
+        }
+        "restore" => {
+            if !rest.is_empty() {
+                return error("`restore` takes no specification file, only --boot and --from");
+            }
+            Command::Restore {
+                boot: boot.ok_or_else(|| UsageError("`restore` needs --boot PATH".into()))?,
+                from: from.ok_or_else(|| UsageError("`restore` needs --from DIR".into()))?,
+            }
+        }
         "detect" => {
             if !rest.is_empty() {
                 return error("`detect` takes no arguments");
@@ -260,6 +291,42 @@ mod tests {
     fn rejects_a_missing_option_value() {
         let err = parse(["apply", "pi.toml", "--boot"]).unwrap_err();
         assert!(err.0.contains("needs a value"));
+    }
+
+    #[test]
+    fn parses_backup_and_restore() {
+        assert_eq!(
+            parsed(&["backup", "--boot", "/media/bootfs", "--out", "./snap"]).command,
+            Command::Backup { boot: PathBuf::from("/media/bootfs"), out: PathBuf::from("./snap") }
+        );
+        assert_eq!(
+            parsed(&["restore", "--boot", "/media/bootfs", "--from", "./snap"]).command,
+            Command::Restore {
+                boot: PathBuf::from("/media/bootfs"),
+                from: PathBuf::from("./snap")
+            }
+        );
+    }
+
+    #[test]
+    fn backup_and_restore_need_their_directories() {
+        assert!(parse(["backup", "--boot", "/media/bootfs"]).is_err());
+        assert!(parse(["backup", "--out", "./snap"]).is_err());
+        assert!(parse(["restore", "--boot", "/media/bootfs"]).is_err());
+        assert!(parse(["restore", "--from", "./snap"]).is_err());
+    }
+
+    #[test]
+    fn backup_and_restore_take_no_specification() {
+        assert!(parse(["backup", "pi.toml", "--boot", "/b", "--out", "./s"]).is_err());
+        assert!(parse(["restore", "pi.toml", "--boot", "/b", "--from", "./s"]).is_err());
+    }
+
+    #[test]
+    fn apply_can_ask_for_a_snapshot_first() {
+        let invocation =
+            parsed(&["apply", "pi.toml", "--boot", "/media/bootfs", "--backup", "./snap"]);
+        assert_eq!(invocation.options.backup, Some(PathBuf::from("./snap")));
     }
 
     #[test]

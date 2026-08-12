@@ -50,12 +50,14 @@ a Rust toolchain. See `docs/adr/0001-zero-dependencies.md`.
 ## Usage
 
 ```
-rpi-provision validate <SPEC>              Parse and validate a specification
-rpi-provision render   <SPEC> --out DIR    Write the generated files to a directory
-rpi-provision diff     <SPEC> --boot PATH  Show what apply would change
-rpi-provision apply    <SPEC> --boot PATH  Write the provisioning payload to a card
-rpi-provision revert   <SPEC> --boot PATH  Undo a previous apply
-rpi-provision detect                       List mounted Raspberry Pi boot partitions
+rpi-provision validate <SPEC>                   Parse and validate a specification
+rpi-provision render   <SPEC> --out DIR         Write the generated files to a directory
+rpi-provision diff     <SPEC> --boot PATH       Show what apply would change
+rpi-provision apply    <SPEC> --boot PATH       Write the provisioning payload to a card
+rpi-provision revert   <SPEC> --boot PATH       Undo a previous apply
+rpi-provision backup   --boot PATH --out DIR    Snapshot the whole boot partition
+rpi-provision restore  --boot PATH --from DIR   Put a snapshot back
+rpi-provision detect                            List mounted Raspberry Pi boot partitions
 ```
 
 `apply` prints the change set and asks for confirmation. Without a terminal on
@@ -65,6 +67,23 @@ unattended script has to say so explicitly.
 Applying twice is a no-op: the `config.txt` managed block is replaced rather
 than appended, `cmdline.txt` is edited token by token, and every generated
 file is compared before being written.
+
+### Snapshots
+
+`revert` undoes what `apply` added. A snapshot covers everything else — a card
+that already carried customisation, or anything unrelated that went wrong —
+without writing the image again:
+
+```console
+$ rpi-provision backup --boot /media/$USER/bootfs --out ./bootfs-backup
+$ rpi-provision restore --boot /media/$USER/bootfs --from ./bootfs-backup
+```
+
+`apply --backup DIR` takes one first, after the confirmation prompt and before
+anything is written. A snapshot is a plain directory of files plus a manifest
+of SHA-256 digests, which is verified in full before a restore writes anything.
+It covers the boot partition, which is all this tool writes; it is not an image
+of the card.
 
 ### Runtime parameter injection
 
@@ -134,6 +153,9 @@ Details in `docs/first-boot.md`.
 - `rpi-provision` refuses to write to a directory that is not a Raspberry Pi 5
   boot partition unless `--allow-unverified-boot` is given.
 - Diffs never print secret content.
+- A snapshot taken after an `apply` contains the payload, and so the Wi-Fi key
+  and the password hash, in an ordinary directory. Snapshot before applying, or
+  treat the directory as sensitive.
 
 ## Documentation
 

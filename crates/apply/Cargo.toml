@@ -8,6 +8,5 @@ repository.workspace = true
 
 [dependencies]
 rpi-provision-render = { path = "../render" }
-
-[dev-dependencies]
 rpi-provision-spec = { path = "../spec" }
+
