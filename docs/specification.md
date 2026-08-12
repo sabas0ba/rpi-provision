@@ -174,7 +174,11 @@ Enabling a bus does not grant the account access to it; add `i2c`, `spi` or
 ## `[[files]]`
 
 Files copied onto the root filesystem during the first boot, in addition to
-everything the tool generates. Each entry is an array-of-tables element.
+everything the tool generates.
+
+**Repeat the `[[files]]` header for each entry.** It is a TOML array of
+tables, so as many as you like may be declared; the double brackets are what
+make it a list rather than a single table.
 
 | Key | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -190,7 +194,11 @@ source = "files/motd"
 destination = "/etc/motd"
 
 [[files]]
-source = "files/scripts"        # a directory
+source = "files/vimrc"
+destination = "/etc/vim/vimrc.local"
+
+[[files]]
+source = "files/scripts"        # a directory, copied recursively
 destination = "/opt/scripts"
 mode = "0755"
 owner = "engineer"
@@ -199,6 +207,11 @@ group = "engineer"
 
 The contents are staged on the boot partition and installed by step
 `30-payload`, so they are in place before the commands in `[[run]]`.
+
+Entries are installed in order of destination rather than in the order they
+are written. Nothing depends on the order — each entry writes exactly one
+path, and two entries may not write the same one — so the two orders are
+interchangeable in practice.
 
 Two entries may not write the same destination, and a destination that
 `rpi-provision` generates itself — a NetworkManager profile, the sshd drop-in,
@@ -212,9 +225,11 @@ with a warning.
 
 ## `[[run]]`
 
-Commands run at the end of the first boot, in the order they are written, as
-step `80-run`. Everything else — the account, the transferred files,
-networking — is in place by then.
+Commands run at the end of the first boot, as step `80-run`. Everything
+else — the account, the transferred files, networking — is in place by then.
+
+**Repeat the `[[run]]` header for each command**, as with `[[files]]`. They
+run in the order they are written, top to bottom.
 
 | Key | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -227,6 +242,13 @@ networking — is in place by then.
 description = "refresh the package index"
 command = "apt-get update"
 ignore_failure = true
+
+[[run]]
+description = "install the editors this bench expects"
+command = "apt-get install -y --no-install-recommends vim tmux"
+
+[[run]]
+command = "systemctl enable my-daemon"
 ```
 
 `command` is the one place a specification contributes *code* rather than a

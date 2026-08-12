@@ -179,8 +179,10 @@ into every specification.
 
 **Your own files and commands.** `[[files]]` copies anything next to the
 specification onto the root filesystem — `files/motd` as a single file,
-`files/sysctl.d` as a directory copied recursively. `[[run]]` then runs
-commands once everything else is in place. `apt-get update` needs a network,
+`files/sysctl.d` as a directory copied recursively. Both headers are TOML
+arrays of tables, so repeat them for as many files and commands as you need;
+the example above declares two transfers, and `[[run]]` commands execute in
+the order they are written. `[[run]]` runs once everything else is in place. `apt-get update` needs a network,
 which a bench board may not have on its very first boot, so this one tolerates
 failure rather than marking the whole run failed.
 

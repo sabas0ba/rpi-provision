@@ -619,3 +619,54 @@ fn a_multi_line_command_is_rejected() {
     assert!(error.message.contains("single line"), "{}", error.message);
     assert!(error.message.contains("[[files]]"), "{}", error.message);
 }
+
+#[test]
+fn several_transfers_and_commands_may_be_declared() {
+    // `[[files]]` and `[[run]]` are arrays of tables, so the headers repeat.
+    // Worth pinning: it is the first thing somebody asks about them.
+    const SOURCE: &str = r#"
+[[files]]
+source = "files/first"
+destination = "/etc/first"
+
+[[files]]
+source = "files/second"
+destination = "/etc/second"
+mode = "0600"
+
+[[files]]
+source = "files/tree"
+destination = "/opt/tree"
+
+[[run]]
+command = "echo one"
+
+[[run]]
+command = "echo two"
+
+[[run]]
+command = "echo three"
+"#;
+    let loaded = load_with_files(
+        &format!("{MINIMAL}{SOURCE}"),
+        &[
+            ("./files/first", "1\n"),
+            ("./files/second", "2\n"),
+            ("./files/tree/a.conf", "a\n"),
+            ("./files/tree/nested/b.conf", "b\n"),
+        ],
+    )
+    .unwrap();
+
+    // Three entries, but four transfers: the directory expanded into two.
+    let destinations: Vec<&str> =
+        loaded.spec.files.iter().map(|file| file.destination.as_str()).collect();
+    assert_eq!(
+        destinations,
+        vec!["/etc/first", "/etc/second", "/opt/tree/a.conf", "/opt/tree/nested/b.conf"]
+    );
+    assert_eq!(loaded.spec.files[1].mode, "0600", "per-entry settings stay with their entry");
+
+    let commands: Vec<&str> = loaded.spec.run.iter().map(|step| step.command.as_str()).collect();
+    assert_eq!(commands, vec!["echo one", "echo two", "echo three"], "written order is kept");
+}
