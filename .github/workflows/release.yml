@@ -153,8 +153,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$GITHUB_REF_NAME" "dist/${{ steps.asset.outputs.name }}" --clobber
 
-  bundle:
-    name: desktop application (${{ matrix.bundle }})
+  desktop:
+    name: desktop application (${{ matrix.kind }})
     needs: draft
     runs-on: ${{ matrix.os }}
     permissions:
@@ -163,43 +163,58 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04, bundle: deb, extension: deb }
-          - { os: windows-2022, bundle: msi, extension: msi }
+          # Linux gets a package because the window needs a webview that the
+          # machine may not have, and a package is how you say so. Windows
+          # gets a plain executable: this is not a tool anyone runs often
+          # enough to want an installer for, and Windows already carries the
+          # webview.
+          - { os: ubuntu-24.04, kind: deb, asset: amd64.deb }
+          - { os: windows-2022, kind: exe, asset: x86_64-pc-windows-msvc.exe }
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
         with:
           toolchain: 1.95.0
       - name: install the webview
-        if: matrix.os == 'ubuntu-24.04'
+        if: matrix.kind == 'deb'
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y \
             libwebkit2gtk-4.1-dev libgtk-3-dev
-      # From crates.io rather than from a third-party action: the bundler is
-      # the only extra tool needed, and this keeps the release to the two
-      # actions the rest of the repository already pins.
+      # Only the package needs a bundler. From crates.io rather than from a
+      # third-party action, so the release keeps to the two actions the rest
+      # of the repository already pins.
       - name: install the tauri bundler
+        if: matrix.kind == 'deb'
         run: cargo install tauri-cli --version "^2" --locked
-      - name: bundle
+      - name: bundle the package
+        if: matrix.kind == 'deb'
         working-directory: gui
-        run: cargo tauri build --bundles ${{ matrix.bundle }}
+        run: cargo tauri build --bundles deb
+      - name: build the executable
+        if: matrix.kind == 'exe'
+        run: cargo build --release --locked --manifest-path gui/Cargo.toml
 
-      - name: name the bundle after the release
+      - name: name it after the release
         id: asset
         shell: bash
         run: |
           set -eu
-          built=$(find gui/target/release/bundle -name "*.${{ matrix.extension }}" -type f | head -n 1)
-          [ -n "$built" ] || { echo "::error::no .${{ matrix.extension }} was produced" >&2; exit 1; }
-          name="rpi-provision-gui-${GITHUB_REF_NAME}-${{ matrix.bundle }}.${{ matrix.extension }}"
+          if [ "${{ matrix.kind }}" = "deb" ]; then
+            built=$(find gui/target/release/bundle -name '*.deb' -type f | head -n 1)
+          else
+            built="gui/target/release/rpi-provision-gui.exe"
+          fi
+          [ -n "$built" ] && [ -f "$built" ] \
+            || { echo "::error::no ${{ matrix.kind }} was produced" >&2; exit 1; }
+          name="rpi-provision-gui-${GITHUB_REF_NAME}-${{ matrix.asset }}"
           mkdir -p dist
           cp "$built" "dist/${name}"
           echo "name=${name}" >>"$GITHUB_OUTPUT"
           ls -l "dist/${name}"
 
       - name: the package must declare what it needs to run
-        if: matrix.os == 'ubuntu-24.04'
+        if: matrix.kind == 'deb'
         shell: bash
         run: |
           # A .deb that does not depend on the webview installs and then fails
@@ -212,6 +227,19 @@ jobs:
           esac
           dpkg-deb -c "dist/${{ steps.asset.outputs.name }}" | grep -q 'usr/bin/rpi-provision-gui'
 
+      - name: the executable must be one
+        if: matrix.kind == 'exe'
+        shell: bash
+        run: |
+          # It cannot be started here — it would open a window and wait — so
+          # this checks it is a Windows executable of a plausible size rather
+          # than, say, a linker error written to the wrong place.
+          asset="dist/${{ steps.asset.outputs.name }}"
+          [ "$(head -c 2 "$asset")" = "MZ" ] || { echo "::error::not a PE image" >&2; exit 1; }
+          size=$(wc -c <"$asset")
+          echo "${size} bytes"
+          [ "$size" -gt 1000000 ] || { echo "::error::implausibly small" >&2; exit 1; }
+
       - name: attach it to the release
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
@@ -221,7 +249,7 @@ jobs:
 
   publish:
     name: publish the release
-    needs: [build, bundle]
+    needs: [build, desktop]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-24.04
     permissions:

@@ -10,16 +10,25 @@ when reading a diff in a terminal is not what you want. Everything it can do,
 `rpi-provision` can do; it holds no logic of its own.
 
 Every [tagged release](https://github.com/sabas0ba/rpi-provision/releases)
-carries it as a `.deb` for Debian and Ubuntu and an `.msi` for Windows:
+carries it, in the form that suits each platform.
+
+**Windows**: download
+`rpi-provision-gui-<tag>-x86_64-pc-windows-msvc.exe` and run it. There is no
+installer, because this is not a tool anyone runs often enough to want one.
+It needs the WebView2 runtime, which Windows 11 has already and which Windows
+10 usually picked up with Edge; Microsoft distributes it as the Evergreen
+runtime otherwise.
+
+**Debian and Ubuntu**: a `.deb`, because the window needs a webview the
+machine may not have, and a package is how you say so — `apt` pulls it in
+rather than leaving you with something that installs and then will not start.
 
 ```console
-$ sudo apt install ./rpi-provision-gui-v1.0.0-deb.deb
+$ sudo apt install ./rpi-provision-gui-v1.0.0-amd64.deb
 $ rpi-provision-gui
 ```
 
-The package depends on `libwebkit2gtk-4.1-0` and `libgtk-3-0`, so `apt` pulls
-the webview in rather than leaving you with something that installs and then
-will not start. Or build it yourself:
+Or build it yourself:
 
 ```console
 $ cargo build --release --manifest-path gui/Cargo.toml
@@ -82,10 +91,15 @@ It therefore needs system packages that the rest of the project does not:
 Nothing about the command line changes: `cargo build` at the root still needs
 only a Rust toolchain, and never builds any of the above.
 
-There is no macOS package yet. The application builds there — Tauri uses the
-system webview and needs nothing extra — but nothing in the release workflow
-produces or tests a `.dmg`, so shipping one would be a claim nobody has
+There is no macOS build in the release. The application builds there — Tauri
+uses the system webview and needs nothing extra — but nothing in the release
+workflow produces or tests one, so shipping it would be a claim nobody has
 checked.
+
+Neither is there a distribution-agnostic Linux build. The counterpart to the
+Windows executable would be an AppImage, which carries its own copy of the
+webview; the `.deb` covers Debian and Ubuntu, and everything else builds from
+source for now.
 
 ## What it deliberately does not do
 

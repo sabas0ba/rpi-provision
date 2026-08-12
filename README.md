@@ -51,13 +51,16 @@ $ install -m 0755 rpi-provision-$tag-x86_64-unknown-linux-musl ~/.local/bin/rpi-
 
 The musl builds are static, so they need nothing installed to run.
 
-The desktop application is on the same release, as a `.deb` for Debian and
-Ubuntu and an `.msi` for Windows. The package declares the webview it needs,
-so `apt` pulls it in:
+The desktop application is on the same release. Windows gets a standalone
+executable to download and run; Linux gets a `.deb`, because the window needs
+a webview that the machine may not have and a package is how you say so:
 
 ```console
-$ sudo apt install ./rpi-provision-gui-$tag-deb.deb
+$ sudo apt install ./rpi-provision-gui-$tag-amd64.deb
 ```
+
+On Windows, run `rpi-provision-gui-$tag-x86_64-pc-windows-msvc.exe` as it is.
+It needs the WebView2 runtime, which Windows 11 has already.
 
 To build either from source instead:
 
