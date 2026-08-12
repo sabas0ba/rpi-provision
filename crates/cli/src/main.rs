@@ -4,7 +4,6 @@
 
 mod args;
 mod commands;
-mod detect;
 
 use args::{Command, Invocation, USAGE};
 

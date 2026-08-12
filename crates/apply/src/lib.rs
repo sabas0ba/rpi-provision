@@ -6,6 +6,7 @@
 //! a dry run and a real run go down the same code path.
 
 pub mod backup;
+pub mod detect;
 pub mod diff;
 pub mod fs;
 

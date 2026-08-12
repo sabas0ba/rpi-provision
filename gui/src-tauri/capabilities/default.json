@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The window this application draws in. Every operation that touches a card goes through a command in main.rs, so no filesystem or shell plugin is granted.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

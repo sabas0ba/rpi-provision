@@ -1,0 +1,454 @@
+/* rpi-provision, the window.
+ *
+ * No framework and no web fonts: the application is offline by construction,
+ * so everything it draws with ships with it. The palette is the one the
+ * documentation site uses, and follows the desktop's light or dark setting. */
+
+:root {
+  --bg: #ffffff;
+  --bg-sunken: #f6f7f9;
+  --bg-field: #ffffff;
+  --fg: #1c2024;
+  --fg-muted: #5b6570;
+  --border: #dfe3e8;
+  --accent: #9a2c3f;
+  --accent-fg: #ffffff;
+  --good: #1f7a4d;
+  --warn: #8a5a00;
+  --bad: #b3261e;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans JP", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171a;
+    --bg-sunken: #1b1f23;
+    --bg-field: #101315;
+    --fg: #e4e7ea;
+    --fg-muted: #9aa4ae;
+    --border: #2c333a;
+    --accent: #f2a0af;
+    --accent-fg: #1c2024;
+    --good: #63c68e;
+    --warn: #e0b25a;
+    --bad: #f2857c;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------------- bar */
+
+.bar {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sunken);
+}
+
+.brand {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.pill {
+  font-size: 0.78rem;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.pill-idle {
+  color: var(--fg-muted);
+}
+.pill-good {
+  color: var(--good);
+  border-color: currentColor;
+}
+.pill-warn {
+  color: var(--warn);
+  border-color: currentColor;
+}
+.pill-bad {
+  color: var(--bad);
+  border-color: currentColor;
+}
+
+/* ---------------------------------------------------------------- layout */
+
+main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr) 19rem;
+}
+
+aside {
+  border-right: 1px solid var(--border);
+  background: var(--bg-sunken);
+  overflow-y: auto;
+  padding: 0.5rem 0.9rem 1.5rem;
+}
+
+aside.right {
+  border-right: 0;
+  border-left: 1px solid var(--border);
+}
+
+aside section {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+aside section:last-child {
+  border-bottom: 0;
+}
+
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 0.74rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.work {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ------------------------------------------------------------------ tabs */
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  background: none;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  padding: 0.35rem 0.9rem;
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--fg);
+  margin-bottom: -1px;
+}
+
+.panel {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.panel.active {
+  display: block;
+}
+
+#panel-toml.active {
+  display: flex;
+}
+
+/* --------------------------------------------------------------- controls */
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0 0 1rem;
+  padding: 0.5rem 1rem 1rem;
+}
+
+legend {
+  padding: 0 0.4rem;
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.6rem 1rem;
+}
+
+label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--fg-muted);
+}
+
+label.check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--fg);
+  font-size: 0.88rem;
+  align-self: end;
+  padding-bottom: 0.35rem;
+}
+
+label.tight {
+  margin: 0.5rem 0;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  margin-top: 0.15rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--bg-field);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+label.check input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+textarea {
+  flex: 1;
+  min-height: 20rem;
+  font-family: var(--mono);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  resize: none;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+button {
+  padding: 0.35rem 0.8rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+button.primary:hover {
+  color: var(--accent-fg);
+  filter: brightness(1.08);
+}
+
+button.danger:hover {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+button.subtle {
+  border-color: transparent;
+  background: none;
+  text-align: left;
+  padding: 0.2rem 0.3rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.row.end {
+  justify-content: flex-end;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.stack button {
+  width: 100%;
+}
+
+.list {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+}
+
+.list li {
+  margin: 0.1rem 0;
+}
+
+.list button {
+  width: 100%;
+  font-size: 0.82rem;
+  font-family: var(--mono);
+}
+
+.secrets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+}
+
+.secret-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.secret-row input {
+  margin-top: 0;
+  font-size: 0.78rem;
+}
+
+/* ---------------------------------------------------------------- output */
+
+/* The diff is column aligned, so it scrolls rather than wraps. */
+.output {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.problem {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.problem {
+  color: var(--bad);
+}
+
+.status dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.6rem;
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.status dt {
+  color: var(--fg-muted);
+}
+
+.status dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.warning {
+  margin: 0.6rem 0 0;
+  font-size: 0.8rem;
+  color: var(--warn);
+}
+
+.muted {
+  color: var(--fg-muted);
+}
+
+.small {
+  font-size: 0.8rem;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+
+/* --------------------------------------------------------------- dialogue */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.dialog {
+  width: min(30rem, calc(100vw - 3rem));
+  padding: 1.1rem 1.3rem 1.3rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.dialog h3 {
+  margin: 0 0 0.5rem;
+}
+
+.dialog p {
+  margin: 0 0 1rem;
+  color: var(--fg-muted);
+}

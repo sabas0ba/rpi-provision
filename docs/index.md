@@ -91,7 +91,9 @@ $ ssh engineer@pi-minimal.local
 Applying twice is a no-op, so a card can be re-provisioned as often as you
 like. If something does go wrong, `revert` undoes what the tool added and
 `restore` puts a whole snapshot back. The full command set is on the
-[usage](usage.md) page.
+[usage](usage.md) page, and there is a
+[desktop application](gui.md) over the same operations if a window suits the
+job better than a terminal.
 
 ## Examples
 

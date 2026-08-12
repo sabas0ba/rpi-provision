@@ -39,6 +39,7 @@ nav:
       - { id: home, title: What it does, path: / }
       - { id: usage, title: Usage, path: /usage.html }
       - { id: examples, title: Examples, path: /examples.html }
+      - { id: gui, title: Desktop application, path: /gui.html }
   - section: Reference
     links:
       - { id: specification, title: Specification, path: /specification.html }

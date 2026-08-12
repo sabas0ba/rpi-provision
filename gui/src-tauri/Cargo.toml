@@ -1,0 +1,20 @@
+[package]
+name = "rpi-provision-gui"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/sabas0ba/rpi-provision"
+description = "Desktop front end for rpi-provision"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+rpi-provision-spec = { path = "../../crates/spec" }
+rpi-provision-render = { path = "../../crates/render" }
+rpi-provision-apply = { path = "../../crates/apply" }
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml_edit = "0.22"

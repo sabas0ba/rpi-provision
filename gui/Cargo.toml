@@ -1,0 +1,10 @@
+# A workspace of its own, deliberately.
+#
+# The crates under ../crates carry no external dependencies (ADR 0001) and CI
+# checks that Cargo.lock never lists a package that is not a workspace member.
+# Tauri brings several hundred. Keeping the application here means it can have
+# them without the library and the CLI losing the property that makes them
+# easy to build anywhere. See ../docs/adr/0003-gui-in-its-own-workspace.md.
+[workspace]
+resolver = "2"
+members = ["src-tauri"]
