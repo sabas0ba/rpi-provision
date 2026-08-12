@@ -5,6 +5,7 @@
 //! it always computes the full resulting content before touching anything, so
 //! a dry run and a real run go down the same code path.
 
+pub mod backup;
 pub mod diff;
 pub mod fs;
 
@@ -109,12 +110,13 @@ impl fmt::Display for Summary {
     }
 }
 
-/// Confirm the directory really is a Raspberry Pi boot partition for the
-/// target the specification names.
+/// Confirm the directory is a Raspberry Pi boot partition of some kind.
 ///
-/// Writing a provisioning payload into the wrong directory is both easy to do
-/// and hard to notice, so this check is not optional in normal operation.
-pub fn verify_boot_partition(fs: &dyn BootFs, expected_dtb: &str) -> Result<()> {
+/// This is the model-independent half of the check. Snapshots are taken and
+/// put back without a specification, so there is no target to compare a
+/// device tree blob against, but writing a whole partition into the wrong
+/// directory is worth refusing all the same.
+pub fn verify_boot_partition_shape(fs: &dyn BootFs) -> Result<()> {
     let mut missing = Vec::new();
     for required in ["config.txt", "cmdline.txt"] {
         if !fs.exists(required) {
@@ -128,6 +130,16 @@ pub fn verify_boot_partition(fs: &dyn BootFs, expected_dtb: &str) -> Result<()> 
             missing.join(" and ")
         )));
     }
+    Ok(())
+}
+
+/// Confirm the directory really is a Raspberry Pi boot partition for the
+/// target the specification names.
+///
+/// Writing a provisioning payload into the wrong directory is both easy to do
+/// and hard to notice, so this check is not optional in normal operation.
+pub fn verify_boot_partition(fs: &dyn BootFs, expected_dtb: &str) -> Result<()> {
+    verify_boot_partition_shape(fs)?;
     if !fs.exists(expected_dtb) {
         return Err(Error::new(format!(
             "{} has config.txt and cmdline.txt but no `{expected_dtb}`, so it is not a \

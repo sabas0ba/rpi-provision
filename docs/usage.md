@@ -5,16 +5,18 @@ nav_id: usage
 
 # Usage
 
-Six commands. Two of them write anything, and both tell you what they are
-about to do first.
+Eight commands. Three of them write to a card — `apply`, `revert` and
+`restore` — and each prints what it is about to do and asks first.
 
 ```
-rpi-provision validate <SPEC>              Parse and validate a specification
-rpi-provision render   <SPEC> --out DIR    Write the generated files to a directory
-rpi-provision diff     <SPEC> --boot PATH  Show what apply would change
-rpi-provision apply    <SPEC> --boot PATH  Write the provisioning payload to a card
-rpi-provision revert   <SPEC> --boot PATH  Undo a previous apply
-rpi-provision detect                       List mounted Raspberry Pi boot partitions
+rpi-provision validate <SPEC>                   Parse and validate a specification
+rpi-provision render   <SPEC> --out DIR         Write the generated files to a directory
+rpi-provision diff     <SPEC> --boot PATH       Show what apply would change
+rpi-provision apply    <SPEC> --boot PATH       Write the provisioning payload to a card
+rpi-provision revert   <SPEC> --boot PATH       Undo a previous apply
+rpi-provision backup   --boot PATH --out DIR    Snapshot the whole boot partition
+rpi-provision restore  --boot PATH --from DIR   Put a snapshot back
+rpi-provision detect                            List mounted Raspberry Pi boot partitions
 ```
 
 ## Finding the card
@@ -85,6 +87,89 @@ Applying twice is a no-op:
 `revert` removes what `apply` added — the managed block, the command-line
 tokens and the payload directory — leaving the rest of the card alone.
 
+## Snapshots
+
+`revert` undoes what `apply` added, which is enough when this tool is the only
+thing that has touched the card. A snapshot covers the other case: the card
+was already carrying customisation nobody wrote down, or something unrelated
+went wrong, and the alternative is writing the image again with Raspberry Pi
+Imager.
+
+```console
+$ rpi-provision backup --boot /media/$USER/bootfs --out ./bootfs-backup
+snapshot: 312 file(s), 61.4 MiB to ./bootfs-backup
+
+Put it back with:
+    rpi-provision restore --boot /media/$USER/bootfs --from ./bootfs-backup
+```
+
+Or take one as part of applying, which is the cheapest insurance there is:
+
+```console
+$ rpi-provision apply pi.toml --boot /media/$USER/bootfs --backup ./before-apply
+```
+
+The snapshot is taken after you confirm the change set and before anything is
+written, so declining the prompt costs nothing.
+
+### What a snapshot is
+
+An ordinary directory holding a byte-for-byte copy of every file on the
+partition, plus a manifest:
+
+```
+bootfs-backup/
+    config.txt
+    cmdline.txt
+    overlays/...
+    rpi-provision-backup.tsv     the manifest
+```
+
+Nothing is compressed and nothing is packed into an archive, so any single
+file can be recovered with `cp` and read without this tool. The manifest
+records the source, the time, and a SHA-256 digest and byte count for every
+file.
+
+The manifest is written **last**, which is what makes it the completion
+marker: an interrupted `backup` leaves a directory that `restore` refuses to
+use, rather than one that silently puts half a card back.
+
+### Putting it back
+
+```console
+$ rpi-provision restore --boot /media/$USER/bootfs --from ./bootfs-backup
+```
+
+`restore` makes the card match the snapshot *exactly*. Files that are on the
+card but not in the snapshot postdate it, so they are deleted — that is what
+makes it able to undo an `apply` completely, including the payload directory.
+The change set is printed and confirmed first, and the deletions are called
+out separately.
+
+Every file in the snapshot is verified against its digest **before the first
+byte is written**. A snapshot that has been damaged is refused outright rather
+than restored as far as the damage, for the same reason `apply` resolves every
+action before touching `config.txt`: a card that is half one thing and half
+another is worse than either.
+
+Restoring is idempotent, so it is safe to run twice, and safe to run on a card
+that already matches — it reports that and stops.
+
+### What it does not cover
+
+- **The boot partition only.** That is the whole of what this tool writes, so
+  a snapshot fully undoes anything `rpi-provision` did. It is not an image of
+  the card: the ext4 root filesystem is not mounted, let alone copied, so it
+  cannot rescue a card whose root filesystem is damaged. That still needs
+  Imager.
+- **Snapshots inherit the card's secrets.** A snapshot taken *after* an
+  `apply` contains the payload, and therefore the Wi-Fi pre-shared key and the
+  password hash, in a directory on your machine with no special permissions.
+  Take snapshots before applying, or treat the directory as sensitive.
+- **The destination must be empty.** Overwriting one snapshot with another
+  would leave files from both, so `backup` refuses rather than mixing two
+  cards into one directory.
+
 ## Secrets
 
 A specification is meant to be committed, so secret fields take a *source*
@@ -138,7 +223,9 @@ board can always be traced back to the exact inputs that produced it.
 | Option | Effect |
 | --- | --- |
 | `--boot PATH` | Mount point of the FAT boot partition |
-| `--out DIR` | Output directory for `render` |
+| `--out DIR` | Output directory for `render` and `backup` |
+| `--from DIR` | Snapshot directory for `restore` |
+| `--backup DIR` | Snapshot the boot partition into DIR before `apply` writes |
 | `--set PATH=VALUE` | Override a value. Repeatable |
 | `--set-secret PATH=SOURCE` | Override a secret's source: `env:NAME`, `file:PATH` or `value:LITERAL`. Repeatable |
 | `-y`, `--yes` | Do not ask for confirmation before writing |

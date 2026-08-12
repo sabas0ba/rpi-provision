@@ -34,6 +34,8 @@ fn main() -> std::process::ExitCode {
         Command::Diff { spec, boot } => commands::diff(spec, boot, &options),
         Command::Apply { spec, boot } => commands::apply(spec, boot, &options),
         Command::Revert { spec, boot } => commands::revert(spec, boot, &options),
+        Command::Backup { boot, out } => commands::backup(boot, out, &options),
+        Command::Restore { boot, from } => commands::restore(boot, from, &options),
         Command::Detect => commands::detect(&options),
     };
 

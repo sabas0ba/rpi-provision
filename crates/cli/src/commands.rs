@@ -4,8 +4,8 @@ use std::io::{IsTerminal, Write};
 use std::path::Path;
 
 use rpi_provision_apply::{
-    conflicting_first_boot_files, execute, plan_changes, revert_plan, verify_boot_partition,
-    BootFs, Change, ChangeKind, RealBootFs,
+    backup as snapshot, conflicting_first_boot_files, execute, plan_changes, revert_plan,
+    verify_boot_partition, verify_boot_partition_shape, BootFs, Change, ChangeKind, RealBootFs,
 };
 use rpi_provision_render::{render, Plan};
 use rpi_provision_spec::{load_file, LoadOptions, Loaded, SystemSecrets};
@@ -168,6 +168,27 @@ fn open_boot(boot: &Path, plan: &Plan, options: &Options) -> Result<RealBootFs> 
     Ok(fs)
 }
 
+/// Open a partition without a specification to compare it against.
+///
+/// `backup` and `restore` work on whatever is on the card, so the check is
+/// the model-independent one.
+fn open_partition(boot: &Path, options: &Options) -> Result<RealBootFs> {
+    if !boot.is_dir() {
+        return Err(Failure(format!("`{}` is not a directory", boot.display())));
+    }
+    let fs = RealBootFs::new(boot);
+    if options.allow_unverified_boot {
+        if !options.quiet {
+            eprintln!(
+                "warning: skipping the boot-partition check because of --allow-unverified-boot"
+            );
+        }
+    } else {
+        verify_boot_partition_shape(&fs)?;
+    }
+    Ok(fs)
+}
+
 /// Refuse to add a second first-boot mechanism to a card that already has one.
 fn check_conflicts(fs: &RealBootFs, options: &Options) -> Result<()> {
     let conflicts = conflicting_first_boot_files(fs);
@@ -232,6 +253,10 @@ pub fn apply(spec: &Path, boot: &Path, options: &Options) -> Result<()> {
         return Err(Failure("aborted at the confirmation prompt".into()));
     }
 
+    if let Some(directory) = &options.backup {
+        take_snapshot(&fs, directory, options)?;
+    }
+
     let summary = execute(&plan, &mut fs)?;
     println!("{summary}");
     if !options.quiet {
@@ -280,6 +305,143 @@ pub fn revert(spec: &Path, boot: &Path, options: &Options) -> Result<()> {
     let summary = execute(&reverse, &mut fs)?;
     println!("{summary}");
     Ok(())
+}
+
+/// Copy a whole boot partition into a new directory.
+fn take_snapshot(source: &RealBootFs, out: &Path, options: &Options) -> Result<()> {
+    if out.exists() && !out.is_dir() {
+        return Err(Failure(format!("`{}` exists and is not a directory", out.display())));
+    }
+    std::fs::create_dir_all(out)
+        .map_err(|err| Failure(format!("cannot create `{}`: {err}", out.display())))?;
+    let mut destination = RealBootFs::new(out);
+    let manifest = snapshot::create(
+        source,
+        &mut destination,
+        rpi_provision_render::GENERATOR,
+        &utc_timestamp(now_seconds()),
+    )?;
+    if !options.quiet {
+        println!(
+            "snapshot: {} file(s), {} to {}",
+            manifest.entries.len(),
+            human_bytes(manifest.total_bytes()),
+            out.display()
+        );
+    }
+    Ok(())
+}
+
+pub fn backup(boot: &Path, out: &Path, options: &Options) -> Result<()> {
+    let source = open_partition(boot, options)?;
+    take_snapshot(&source, out, options)?;
+    if !options.quiet {
+        println!(
+            "\nPut it back with:\n    rpi-provision restore --boot {} --from {}",
+            boot.display(),
+            out.display()
+        );
+    }
+    Ok(())
+}
+
+pub fn restore(boot: &Path, from: &Path, options: &Options) -> Result<()> {
+    if !from.is_dir() {
+        return Err(Failure(format!("`{}` is not a directory", from.display())));
+    }
+    let source = RealBootFs::new(from);
+    let manifest = snapshot::read_manifest(&source)?;
+    let mut target = open_partition(boot, options)?;
+
+    if !options.quiet {
+        println!(
+            "snapshot of {}, taken {} by {}",
+            manifest.source, manifest.created, manifest.generator
+        );
+    }
+
+    // Verifies every file in the snapshot before anything is written.
+    let changes = snapshot::restore_changes(&source, &manifest, &target)?;
+    print_changes(&changes, options);
+    let (created, updated, unchanged, deleted) = tally(&changes);
+    if created + updated + deleted == 0 {
+        println!("{} already matches the snapshot ({unchanged} file(s))", boot.display());
+        return Ok(());
+    }
+
+    println!(
+        "{created} to restore, {updated} to overwrite, {unchanged} unchanged, \
+         {deleted} to delete"
+    );
+    if deleted > 0 && !options.quiet {
+        println!(
+            "The {deleted} file(s) marked `delete` are on the card but not in the snapshot; \
+             restoring removes them."
+        );
+    }
+    if !confirm(
+        &format!(
+            "Make {} match the snapshot ({} change(s))?",
+            target.describe(),
+            created + updated + deleted
+        ),
+        options,
+    )? {
+        return Err(Failure("aborted at the confirmation prompt".into()));
+    }
+
+    let summary = snapshot::restore(&source, &changes, &mut target)?;
+    println!("{summary}");
+    Ok(())
+}
+
+fn human_bytes(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit + 1 < UNITS.len() {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
+}
+
+fn now_seconds() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs())
+        .unwrap_or(0)
+}
+
+/// Format a Unix timestamp as `YYYY-MM-DDTHH:MM:SSZ`.
+fn utc_timestamp(seconds: u64) -> String {
+    let (year, month, day) = civil_from_days((seconds / 86_400) as i64);
+    let time = seconds % 86_400;
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        time / 3600,
+        (time / 60) % 60,
+        time % 60
+    )
+}
+
+/// Days since 1970-01-01 to a civil date, by Howard Hinnant's algorithm.
+fn civil_from_days(days: i64) -> (i64, u32, u32) {
+    let shifted = days + 719_468;
+    let era = if shifted >= 0 { shifted } else { shifted - 146_096 } / 146_097;
+    let day_of_era = (shifted - era * 146_097) as u64;
+    let year_of_era =
+        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let year = year_of_era as i64 + era * 400;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let shifted_month = (5 * day_of_year + 2) / 153;
+    let day = (day_of_year - (153 * shifted_month + 2) / 5 + 1) as u32;
+    let month = if shifted_month < 10 { shifted_month + 3 } else { shifted_month - 9 } as u32;
+    (if month <= 2 { year + 1 } else { year }, month, day)
 }
 
 pub fn detect(options: &Options) -> Result<()> {
