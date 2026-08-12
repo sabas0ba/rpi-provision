@@ -1,0 +1,168 @@
+name: release
+
+# Pushing a tag builds the binaries and publishes them on the release.
+#
+# `workflow_dispatch` runs everything except the publishing, so the build
+# matrix can be exercised without spending a tag on finding out it is broken.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+
+# Actions are pinned by commit SHA. Update them deliberately, never by tag.
+jobs:
+  verify:
+    name: verify the commit being released
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: 1.95.0
+          components: rustfmt, clippy
+      # `ci.yml` runs on pushes to main and on pull requests, neither of which
+      # covers a tag. A tag can name any commit, so it is checked here too
+      # rather than assumed to have been checked already.
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: cargo test
+        run: cargo test --all-features
+      - name: the tag must name the version it builds
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "rpi-provision") | .version')
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} builds version ${version}." >&2
+            echo "Bump the workspace version, or tag v${version}." >&2
+            exit 1
+          fi
+          echo "tag ${GITHUB_REF_NAME} matches version ${version}"
+
+  draft:
+    name: open the release
+    needs: verify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # `--generate-notes` summarises what has landed since the previous
+          # tag, which it can only do with the history to compare against.
+          fetch-depth: 0
+      - name: create it as a draft
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Nothing is visible until every binary has been attached, so a
+          # failed build leaves no half-populated release behind. Re-running
+          # the workflow for the same tag reuses the draft rather than failing.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "release ${GITHUB_REF_NAME} already exists; reusing it"
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --draft \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi
+
+  build:
+    name: ${{ matrix.target }}
+    needs: draft
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04, target: aarch64-unknown-linux-musl }
+          - { os: windows-2022, target: x86_64-pc-windows-msvc }
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: 1.95.0
+          targets: ${{ matrix.target }}
+      - name: install the cross linker
+        if: startsWith(matrix.target, 'aarch64-unknown-linux')
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            gcc-aarch64-linux-gnu musl-tools
+      - name: build
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      # bash on every runner, Windows included, so this is one script rather
+      # than one per platform.
+      - name: name the binary after what it runs on
+        id: asset
+        shell: bash
+        run: |
+          set -eu
+          suffix=""
+          if [ "${{ matrix.os }}" = "windows-2022" ]; then
+            suffix=".exe"
+          fi
+          built="target/${{ matrix.target }}/release/rpi-provision${suffix}"
+          [ -f "$built" ] || { echo "::error::${built} was not produced" >&2; exit 1; }
+          name="rpi-provision-${GITHUB_REF_NAME}-${{ matrix.target }}${suffix}"
+          mkdir -p dist
+          cp "$built" "dist/${name}"
+          echo "name=${name}" >>"$GITHUB_OUTPUT"
+          ls -l "dist/${name}"
+
+      - name: it must at least run
+        shell: bash
+        if: matrix.target != 'aarch64-unknown-linux-musl'
+        run: |
+          # A binary that cannot print its own version is not worth shipping.
+          # The aarch64 build is cross compiled and cannot run here.
+          "dist/${{ steps.asset.outputs.name }}" version
+
+      - name: attach it to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" "dist/${{ steps.asset.outputs.name }}" --clobber
+
+  publish:
+    name: publish the release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: checksum every attached binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          mkdir -p assets && cd assets
+          gh release download "$GITHUB_REF_NAME" --pattern 'rpi-provision-*'
+          sha256sum rpi-provision-* >SHA256SUMS
+          cat SHA256SUMS
+          gh release upload "$GITHUB_REF_NAME" SHA256SUMS --clobber
+      - name: make it visible
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
