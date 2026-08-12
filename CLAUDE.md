@@ -31,8 +31,10 @@ CI に `Cargo.lock` の検査があり、workspace member 以外のパッケー�
 
 `spec -> render -> apply` の三層構造を崩さないこと。
 
-- `crates/spec` は I/O を行わない (秘密情報の解決を除く)。検証はここで完結し、
-  以降の層は「仕様は妥当である」と仮定してよい。
+- `crates/spec` が外部に触れるのは `SecretProvider` 経由のみ。秘密情報の解決と
+  `[[files]]` のアセット読み込みがこれに当たる (render は純粋関数なので、
+  転送するファイルの中身は Spec の時点で載っている必要がある)。検証はここで
+  完結し、以降の層は「仕様は妥当である」と仮定してよい。
 - `crates/render` は純粋関数である。`Spec` と digest だけを入力に `Plan` を
   返す。ファイルシステムに触れてはならない。ゴールデンテストはこの性質に
   依存している。
@@ -60,7 +62,9 @@ CI に `Cargo.lock` の検査があり、workspace member 以外のパッケー�
   `payload/etc/NetworkManager/system-connections/*.nmconnection` と
   `secrets/password.hash` 以外に出現してはならない。テストで検査している。
 - ステップスクリプトの番号は依存順を表す。挿入時は既存の番号を詰めずに
-  空き番号を使う。
+  空き番号を使う。現在 10/20/30/40/50/60/70/80 が埋まっている。
+- `[[run]]` の `command` は仕様が唯一「値ではなくコード」を寄与する場所であり、
+  意図的に `quote()` を通さない。それ以外は必ず通すこと。
 
 ## Raspberry Pi 5 固有の事項
 

@@ -15,9 +15,9 @@ pub mod sha256;
 
 pub use error::{Error, Result};
 pub use model::{
-    EthernetConnection, GadgetFunction, Hardware, I2c, IpConfig, IpMethod, Meta, Network, OneWire,
-    Provisioning, Spec, Spi, Ssh, SudoMode, System, Target, Uart, UsbGadget, User, WifiConnection,
-    WifiSecurity, SCHEMA_VERSION,
+    EthernetConnection, FileTransfer, GadgetFunction, Hardware, I2c, IpConfig, IpMethod, Meta,
+    Network, OneWire, Provisioning, RunStep, Spec, Spi, Ssh, SudoMode, System, Target, Uart,
+    UsbGadget, User, WifiConnection, WifiSecurity, SCHEMA_VERSION,
 };
 pub use net::{Ipv4Cidr, MacAddr};
 pub use overrides::Override;

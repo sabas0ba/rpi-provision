@@ -29,6 +29,7 @@ systemd.unit=kernel-command-line.target
         payload/                mirrors the target paths
             etc/...
             usr/local/sbin/...
+            files/                  the [[files]] transfers, one directory each
         steps/
             10-hostname.sh
             20-user.sh
@@ -37,6 +38,7 @@ systemd.unit=kernel-command-line.target
             50-network.sh       only when networking is configured
             60-usb-gadget.sh    only when the gadget is enabled
             70-locale.sh        only when localisation is configured
+            80-run.sh           only when [[run]] declares commands
 ```
 
 ## Sequence
@@ -76,6 +78,7 @@ explaining why.
 | `50-network` | Re-asserts root ownership and mode 0600 on the NetworkManager keyfiles, sets the Wi-Fi regulatory domain, unblocks the radio, reloads NetworkManager if it is already running |
 | `60-usb-gadget` | `systemctl daemon-reload` and enables `rpi-provision-gadget.service` |
 | `70-locale` | `raspi-config nonint do_change_timezone` / `do_change_locale` / `do_configure_keyboard` |
+| `80-run` | The commands declared in `[[run]]`, in order. Only present when there are any |
 
 ## Debugging
 

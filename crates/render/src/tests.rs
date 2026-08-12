@@ -90,6 +90,9 @@ fn written(plan: &Plan, path: &str) -> String {
             Action::Write { path: candidate, contents, .. } if candidate == path => {
                 Some(contents.clone())
             }
+            Action::WriteBytes { path: candidate, contents, .. } if candidate == path => {
+                Some(String::from_utf8_lossy(contents).into_owned())
+            }
             _ => None,
         })
         .unwrap_or_else(|| {
@@ -214,8 +217,10 @@ fn manifest_lists_every_payload_file() {
 
     for entry in &entries {
         let fields: Vec<&str> = entry.split('\t').collect();
-        assert_eq!(fields.len(), 3, "malformed manifest entry: {entry:?}");
-        let (mode, source, destination) = (fields[0], fields[1], fields[2]);
+        assert_eq!(fields.len(), 5, "malformed manifest entry: {entry:?}");
+        let (mode, owner, group, source, destination) =
+            (fields[0], fields[1], fields[2], fields[3], fields[4]);
+        assert_eq!((owner, group), ("root", "root"), "generated files are root owned");
         assert_eq!(mode.len(), 4, "mode must be four octal digits: {mode}");
         assert!(mode.bytes().all(|b| (b'0'..=b'7').contains(&b)), "mode {mode}");
         assert!(destination.starts_with('/'), "destination must be absolute: {destination}");
@@ -225,7 +230,7 @@ fn manifest_lists_every_payload_file() {
     }
 
     let destinations: Vec<&str> =
-        entries.iter().map(|line| line.split('\t').nth(2).unwrap()).collect();
+        entries.iter().map(|line| line.split('\t').next_back().unwrap()).collect();
     for expected in [
         "/etc/NetworkManager/system-connections/eth0-static.nmconnection",
         "/etc/NetworkManager/system-connections/home.nmconnection",
@@ -247,7 +252,7 @@ fn manifest_destinations_are_unique() {
     let mut destinations: Vec<&str> = manifest
         .lines()
         .filter(|line| !line.starts_with('#') && !line.trim().is_empty())
-        .map(|line| line.split('\t').nth(2).unwrap())
+        .map(|line| line.split('\t').next_back().unwrap())
         .collect();
     let total = destinations.len();
     destinations.sort_unstable();
@@ -417,4 +422,102 @@ fn every_action_path_is_relative_and_normalised() {
         assert!(!path.contains(".."), "{path} must not escape the boot partition");
         assert!(!path.contains('\\'), "{path} must use forward slashes");
     }
+}
+
+// ------------------------------------------------------- declared transfers
+
+/// `spec::reserved_destination` exists so that validation can reject a
+/// `[[files]]` entry that would fight with a generated one. It is a hand
+/// written list, so this keeps it honest.
+#[test]
+fn every_generated_destination_is_reserved() {
+    let plan = plan_of(FULL);
+    let manifest = written(&plan, "rpi-provision/manifest.tsv");
+    let mut checked = 0;
+    for line in manifest.lines() {
+        if line.starts_with('#') || line.trim().is_empty() {
+            continue;
+        }
+        let destination = line.split('\t').next_back().expect("a destination column");
+        assert!(
+            rpi_provision_spec::model::reserved_destination(destination, "engineer").is_some(),
+            "{destination} is generated but not reserved; add it to reserved_destination"
+        );
+        checked += 1;
+    }
+    assert!(checked >= 4, "the fixture must generate several payload files, saw {checked}");
+}
+
+#[test]
+fn a_declared_file_reaches_the_manifest_with_its_mode_and_owner() {
+    let provider = MapSecrets::default().with_file("./files/motd", "welcome\n");
+    let source = format!(
+        "{MINIMAL}\n[[files]]\nsource = \"files/motd\"\ndestination = \"/etc/motd\"\n\
+         mode = \"0640\"\nowner = \"engineer\"\ngroup = \"engineer\"\n"
+    );
+    let loaded = load_str(&source, &LoadOptions::new(&provider)).unwrap();
+    let plan = render(&loaded.spec, &loaded.digest);
+
+    let manifest = written(&plan, "rpi-provision/manifest.tsv");
+    let entry = manifest
+        .lines()
+        .find(|line| line.ends_with("/etc/motd"))
+        .unwrap_or_else(|| panic!("no entry for /etc/motd in {manifest}"));
+    let fields: Vec<&str> = entry.split('\t').collect();
+    assert_eq!(fields[0], "0640");
+    assert_eq!((fields[1], fields[2]), ("engineer", "engineer"));
+    // Staged under files/ so a declared name can never collide with a
+    // generated one.
+    assert!(fields[3].starts_with("payload/files/"), "{}", fields[3]);
+    assert_eq!(written(&plan, &format!("rpi-provision/{}", fields[3])), "welcome\n");
+}
+
+#[test]
+fn a_declared_file_may_be_binary() {
+    let provider = MapSecrets::default().with_file("./files/blob", "\u{0}\u{1}\u{2}");
+    let source =
+        format!("{MINIMAL}\n[[files]]\nsource = \"files/blob\"\ndestination = \"/opt/blob\"\n");
+    let loaded = load_str(&source, &LoadOptions::new(&provider)).unwrap();
+    let plan = render(&loaded.spec, &loaded.digest);
+    let staged = plan
+        .actions
+        .iter()
+        .any(|action| matches!(action, Action::WriteBytes { path, .. } if path.contains("blob")));
+    assert!(staged, "a declared file must be staged as bytes, not text");
+}
+
+#[test]
+fn run_commands_become_the_last_step() {
+    let source = format!(
+        "{MINIMAL}\n[[run]]\ndescription = \"say hello\"\ncommand = \"echo hello\"\n\
+         \n[[run]]\ncommand = \"apt-get update\"\nignore_failure = true\n"
+    );
+    let plan = plan_of(&source);
+    let step = written(&plan, "rpi-provision/steps/80-run.sh");
+
+    // The description is a value and is quoted; the command is code and is not.
+    assert!(step.contains("printf 'run: %s\\n' 'say hello'"), "{step}");
+    assert!(step.contains("\necho hello\n"), "{step}");
+    // A tolerated failure is reported rather than aborting the step.
+    assert!(step.contains("if ! apt-get update; then"), "{step}");
+    assert!(step.starts_with("#!/bin/sh\n"));
+    assert!(step.contains("\nset -eu\n"));
+
+    // 80 puts it after every step that configures the machine.
+    let steps: Vec<&str> = plan
+        .actions
+        .iter()
+        .map(Action::path)
+        .filter(|path| path.starts_with("rpi-provision/steps/"))
+        .collect();
+    assert_eq!(steps.last().copied(), Some("rpi-provision/steps/80-run.sh"), "{steps:?}");
+}
+
+#[test]
+fn no_run_commands_means_no_run_step() {
+    let plan = plan_of(MINIMAL);
+    assert!(
+        !plan.actions.iter().any(|action| action.path().ends_with("80-run.sh")),
+        "an empty `run` must not produce a step"
+    );
 }

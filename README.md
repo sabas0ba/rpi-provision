@@ -32,6 +32,8 @@ $ rpi-provision apply examples/development.toml --boot /media/$USER/bootfs
 | USB gadget | `dtoverlay=dwc2,dr_mode=peripheral`, a configfs composition script for ECM/NCM/RNDIS, a systemd unit, and a static address on the link |
 | Hardware | UART0 on GPIO 14/15, the dedicated debug UART, I²C with baud rate, SPI, 1-Wire, PCIe generation, arbitrary overlays and `dtparam`s |
 | Localisation | Time zone, locale, keyboard map |
+| Your own files | Any file or directory copied onto the root filesystem, with its mode and ownership |
+| Your own commands | Shell commands run at the end of the first boot |
 
 ## Installation
 

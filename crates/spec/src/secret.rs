@@ -52,10 +52,21 @@ impl SecretSource {
     }
 }
 
-/// Supplies secret material during specification loading.
+/// Everything the loader reads from outside the document.
+///
+/// Named for its original job, which was secrets alone. It now also supplies
+/// the payload assets named by `[[files]]`, because those have to be in the
+/// `Spec` before `render` — a pure function — can put them in a plan. Keeping
+/// both behind one trait keeps this the single seam where loading touches the
+/// host, and the single thing a test has to substitute.
 pub trait SecretProvider {
     fn env(&self, name: &str) -> Option<String>;
     fn read_file(&self, path: &Path) -> std::io::Result<String>;
+    /// Read a payload asset verbatim. Not a secret, and not necessarily text.
+    fn read_bytes(&self, path: &Path) -> std::io::Result<Vec<u8>>;
+    /// Files below a directory, recursively, as paths relative to it and
+    /// sorted. `None` when the path is not a directory.
+    fn list_dir(&self, path: &Path) -> std::io::Result<Option<Vec<PathBuf>>>;
 }
 
 /// Reads from the real process environment and filesystem.
@@ -69,6 +80,33 @@ impl SecretProvider for SystemSecrets {
     fn read_file(&self, path: &Path) -> std::io::Result<String> {
         std::fs::read_to_string(path)
     }
+
+    fn read_bytes(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+        std::fs::read(path)
+    }
+
+    fn list_dir(&self, path: &Path) -> std::io::Result<Option<Vec<PathBuf>>> {
+        if !path.is_dir() {
+            return Ok(None);
+        }
+        let mut found = Vec::new();
+        walk(path, Path::new(""), &mut found)?;
+        found.sort();
+        Ok(Some(found))
+    }
+}
+
+fn walk(directory: &Path, prefix: &Path, found: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    for entry in std::fs::read_dir(directory)? {
+        let entry = entry?;
+        let relative = prefix.join(entry.file_name());
+        if entry.metadata()?.is_dir() {
+            walk(&entry.path(), &relative, found)?;
+        } else {
+            found.push(relative);
+        }
+    }
+    Ok(())
 }
 
 /// An in-memory provider, used by the test-suite.
@@ -102,6 +140,26 @@ impl SecretProvider for MapSecrets {
                 format!("{} not found", path.display()),
             )
         })
+    }
+
+    fn read_bytes(&self, path: &Path) -> std::io::Result<Vec<u8>> {
+        self.read_file(path).map(String::into_bytes)
+    }
+
+    /// A path is a directory here if any registered file sits below it.
+    fn list_dir(&self, path: &Path) -> std::io::Result<Option<Vec<PathBuf>>> {
+        let mut found: Vec<PathBuf> = self
+            .files
+            .keys()
+            .filter_map(|candidate| candidate.strip_prefix(path).ok())
+            .map(Path::to_path_buf)
+            .filter(|relative| relative.as_os_str() != "")
+            .collect();
+        if found.is_empty() {
+            return Ok(None);
+        }
+        found.sort();
+        Ok(Some(found))
     }
 }
 

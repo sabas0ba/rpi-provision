@@ -171,6 +171,87 @@ With `console = false` and `debug_connector = false`, the stock
 Enabling a bus does not grant the account access to it; add `i2c`, `spi` or
 `gpio` to `user.groups` for that.
 
+## `[[files]]`
+
+Files copied onto the root filesystem during the first boot, in addition to
+everything the tool generates. Each entry is an array-of-tables element.
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `source` | string | *required* | A file or a directory, relative to the specification file. A directory is copied recursively, keeping its layout |
+| `destination` | string | *required* | Absolute path on the device. No `.` or `..`, no trailing `/`. For a directory source this is the directory the tree lands in |
+| `mode` | string | `"0644"` | Octal, quoted. For a directory source it applies to every file below it |
+| `owner` | string | `root` | |
+| `group` | string | `root` | |
+
+```toml
+[[files]]
+source = "files/motd"
+destination = "/etc/motd"
+
+[[files]]
+source = "files/scripts"        # a directory
+destination = "/opt/scripts"
+mode = "0755"
+owner = "engineer"
+group = "engineer"
+```
+
+The contents are staged on the boot partition and installed by step
+`30-payload`, so they are in place before the commands in `[[run]]`.
+
+Two entries may not write the same destination, and a destination that
+`rpi-provision` generates itself — a NetworkManager profile, the sshd drop-in,
+the sudo rule, the gadget script or unit — is rejected rather than silently
+overwritten by one or the other.
+
+The boot partition is small and FAT formatted, and everything declared here
+has to fit on it alongside the payload. Fetching a large archive on the device
+is the better shape; a specification whose transfers exceed 64 MiB is loaded
+with a warning.
+
+## `[[run]]`
+
+Commands run at the end of the first boot, in the order they are written, as
+step `80-run`. Everything else — the account, the transferred files,
+networking — is in place by then.
+
+| Key | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `command` | string | *required* | A single line, run by `/bin/sh` on the device |
+| `description` | string | — | Printed to the log before the command runs |
+| `ignore_failure` | boolean | `false` | Report a failure and carry on instead of stopping the step |
+
+```toml
+[[run]]
+description = "refresh the package index"
+command = "apt-get update"
+ignore_failure = true
+```
+
+`command` is the one place a specification contributes *code* rather than a
+value: it is emitted into the generated script verbatim, not quoted, because
+it is meant to be interpreted by the shell. Everything else a specification
+provides is quoted before it reaches a script.
+
+It must be a single line. Anything longer belongs in a script transferred with
+`[[files]]` and invoked here, which also keeps it under review as a file
+rather than as a string inside a TOML document:
+
+```toml
+[[files]]
+source = "files/setup.sh"
+destination = "/usr/local/sbin/setup.sh"
+mode = "0755"
+
+[[run]]
+command = "/usr/local/sbin/setup.sh"
+```
+
+Unless `ignore_failure` is set, a failing command stops the step, and the
+first-boot runner records `status=failed`. It still removes its own hooks from
+`cmdline.txt`, so a failing command cannot produce a boot loop.
+
 ## `[provisioning]`
 
 | Key | Type | Default | Notes |

@@ -30,6 +30,8 @@ secrets are declared as a *source* rather than written into it.
 | USB gadget | `dtoverlay=dwc2,dr_mode=peripheral`, a configfs composition script for ECM/NCM/RNDIS, a systemd unit and a static address on the link |
 | Hardware | UART0 on GPIO 14/15, the dedicated debug UART, I²C with baud rate, SPI, 1-Wire, PCIe generation, arbitrary overlays and `dtparam`s |
 | Localisation | Time zone, locale, keyboard map |
+| Your own files | Any file or directory copied onto the root filesystem, with its mode and ownership |
+| Your own commands | Shell commands run at the end of the first boot |
 
 Every key, with its type, default and constraints, is in the
 [specification reference](specification.md).
@@ -114,7 +116,8 @@ to `cmdline.txt`. On the first boot the runner:
    so the secrets live in RAM and the FAT copy can be deleted while the script
    is still running;
 2. runs `steps/*.sh` in numeric order — host name, account, payload install,
-   SSH, network, USB gadget, localisation;
+   SSH, network, USB gadget, localisation, and finally the commands declared
+   in `[[run]]`;
 3. removes its own hooks from `cmdline.txt`, so a failed run cannot become a
    boot loop;
 4. deletes the payload from the boot partition;

@@ -92,7 +92,7 @@ pub fn ethernet_profile(connection: &EthernetConnection) -> PayloadFile {
     ip_sections(&mut out, &connection.ip, connection.ip.method != IpMethod::Manual);
 
     let (source, destination) = keyfile_path(&connection.id);
-    PayloadFile { source, destination, mode: "0600", contents: out, sensitive: false }
+    PayloadFile::generated(source, destination, "0600", out)
 }
 
 /// A wireless connection profile. The pre-shared key makes it sensitive.
@@ -133,13 +133,7 @@ pub fn wifi_profile(connection: &WifiConnection) -> PayloadFile {
     ip_sections(&mut out, &connection.ip, true);
 
     let (source, destination) = keyfile_path(&connection.id);
-    PayloadFile {
-        source,
-        destination,
-        mode: "0600",
-        contents: out,
-        sensitive: connection.psk.is_some(),
-    }
+    PayloadFile::generated(source, destination, "0600", out).sensitive(connection.psk.is_some())
 }
 
 /// The static address on the USB gadget link.
@@ -167,7 +161,7 @@ pub fn gadget_profile(gadget: &UsbGadget) -> PayloadFile {
     let _ = writeln!(out, "method=disabled");
 
     let (source, destination) = keyfile_path(&id);
-    PayloadFile { source, destination, mode: "0600", contents: out, sensitive: false }
+    PayloadFile::generated(source, destination, "0600", out)
 }
 
 #[cfg(test)]
@@ -203,13 +197,13 @@ mod tests {
             "/etc/NetworkManager/system-connections/eth0-static.nmconnection"
         );
         assert_eq!(file.mode, "0600");
-        assert!(file.contents.contains("type=ethernet"));
-        assert!(file.contents.contains("interface-name=eth0"));
-        assert!(file.contents.contains("method=manual"));
-        assert!(file.contents.contains("address1=192.168.1.50/24,192.168.1.1"));
-        assert!(file.contents.contains("dns=192.168.1.1;1.1.1.1;"));
-        assert!(file.contents.contains("may-fail=false"));
-        assert!(file.contents.contains("autoconnect-priority=100"));
+        assert!(file.text().contains("type=ethernet"));
+        assert!(file.text().contains("interface-name=eth0"));
+        assert!(file.text().contains("method=manual"));
+        assert!(file.text().contains("address1=192.168.1.50/24,192.168.1.1"));
+        assert!(file.text().contains("dns=192.168.1.1;1.1.1.1;"));
+        assert!(file.text().contains("may-fail=false"));
+        assert!(file.text().contains("autoconnect-priority=100"));
         assert!(!file.sensitive);
     }
 
@@ -224,7 +218,7 @@ mod tests {
         let c = ethernet_profile(&other);
         let uuid_of =
             |text: &str| text.lines().find(|line| line.starts_with("uuid=")).unwrap().to_string();
-        assert_ne!(uuid_of(&a.contents), uuid_of(&c.contents));
+        assert_ne!(uuid_of(&a.text()), uuid_of(&c.text()));
     }
 
     #[test]
@@ -239,9 +233,9 @@ mod tests {
             ipv6: IpMethod::Auto,
         };
         let file = ethernet_profile(&connection);
-        assert!(file.contents.contains("method=auto"));
-        assert!(!file.contents.contains("address1="));
-        assert!(file.contents.contains("may-fail=true"));
+        assert!(file.text().contains("method=auto"));
+        assert!(!file.text().contains("address1="));
+        assert!(file.text().contains("may-fail=true"));
     }
 
     #[test]
@@ -249,7 +243,7 @@ mod tests {
         let mut connection = static_ethernet();
         connection.mac = Some(MacAddr::parse("02:11:22:33:44:55").unwrap());
         let file = ethernet_profile(&connection);
-        assert!(file.contents.contains("cloned-mac-address=02:11:22:33:44:55"));
+        assert!(file.text().contains("cloned-mac-address=02:11:22:33:44:55"));
     }
 
     fn wifi(security: WifiSecurity, psk: Option<&str>) -> WifiConnection {
@@ -276,23 +270,23 @@ mod tests {
     #[test]
     fn renders_wpa_psk_wifi() {
         let file = wifi_profile(&wifi(WifiSecurity::WpaPsk, Some("secret-passphrase")));
-        assert!(file.contents.contains("type=wifi"));
-        assert!(file.contents.contains("ssid=MySSID"));
-        assert!(file.contents.contains("key-mgmt=wpa-psk"));
-        assert!(file.contents.contains("psk=secret-passphrase"));
+        assert!(file.text().contains("type=wifi"));
+        assert!(file.text().contains("ssid=MySSID"));
+        assert!(file.text().contains("key-mgmt=wpa-psk"));
+        assert!(file.text().contains("psk=secret-passphrase"));
         assert!(file.sensitive, "a profile holding a pre-shared key must be marked sensitive");
     }
 
     #[test]
     fn renders_wpa3_wifi() {
         let file = wifi_profile(&wifi(WifiSecurity::Sae, Some("secret-passphrase")));
-        assert!(file.contents.contains("key-mgmt=sae"));
+        assert!(file.text().contains("key-mgmt=sae"));
     }
 
     #[test]
     fn open_wifi_has_no_security_section() {
         let file = wifi_profile(&wifi(WifiSecurity::Open, None));
-        assert!(!file.contents.contains("[wifi-security]"));
+        assert!(!file.text().contains("[wifi-security]"));
         assert!(!file.sensitive);
     }
 
@@ -301,7 +295,7 @@ mod tests {
         let mut connection = wifi(WifiSecurity::WpaPsk, Some("secret-passphrase"));
         connection.hidden = true;
         let file = wifi_profile(&connection);
-        assert!(file.contents.contains("hidden=true"));
+        assert!(file.text().contains("hidden=true"));
     }
 
     #[test]
@@ -320,10 +314,10 @@ mod tests {
             serial: "pi".into(),
         };
         let file = gadget_profile(&gadget);
-        assert!(file.contents.contains("address1=10.55.0.1/24"));
-        assert!(file.contents.contains("never-default=true"));
-        assert!(file.contents.contains("may-fail=true"));
-        assert!(!file.contents.contains("gateway"));
+        assert!(file.text().contains("address1=10.55.0.1/24"));
+        assert!(file.text().contains("never-default=true"));
+        assert!(file.text().contains("may-fail=true"));
+        assert!(!file.text().contains("gateway"));
         assert_eq!(
             file.destination,
             "/etc/NetworkManager/system-connections/usb0-gadget.nmconnection"

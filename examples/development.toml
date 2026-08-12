@@ -76,3 +76,22 @@ enabled = true
 [hardware]
 pcie_gen = 3
 overlays = ["disable-bt"]
+
+# Files copied onto the root filesystem during the first boot. `source` is
+# relative to this file; a directory is copied recursively.
+[[files]]
+source = "files/motd"
+destination = "/etc/motd"
+
+[[files]]
+source = "files/sysctl.d"
+destination = "/etc/sysctl.d"
+mode = "0644"
+
+# Commands run last, once the account, the payload and networking are all in
+# place. The package index needs a network, which a bench board may not have
+# on its very first boot, so a failure here is tolerated.
+[[run]]
+description = "refresh the package index"
+command = "apt-get update"
+ignore_failure = true

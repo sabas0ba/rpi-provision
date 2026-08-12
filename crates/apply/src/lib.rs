@@ -178,6 +178,12 @@ pub fn resolve(action: &Action, fs: &dyn BootFs) -> Result<Resolution> {
             executable: *executable,
             sensitive: *sensitive,
         }),
+        Action::WriteBytes { path, contents, sensitive } => Ok(Resolution::Write {
+            path: path.clone(),
+            contents: contents.clone(),
+            executable: false,
+            sensitive: *sensitive,
+        }),
         Action::MergeManagedBlock { path, block } => {
             let existing = read_text(fs, path)?;
             let merged = config_txt::merge(&existing, block)
@@ -226,12 +232,17 @@ fn describe(resolution: &Resolution, fs: &dyn BootFs) -> Result<Change> {
     match resolution {
         Resolution::Write { path, contents, sensitive, .. } => {
             let exists = fs.exists(path);
-            let previous = if exists { read_text(fs, path)? } else { String::new() };
-            let next = String::from_utf8_lossy(contents).into_owned();
+            // Bytes, not text: a payload asset is whatever the user pointed
+            // at, so it may not be UTF-8 on either side of the comparison.
+            let previous = if exists {
+                fs.read(path).map_err(|err| Error::new(format!("cannot read {path}: {err}")))?
+            } else {
+                Vec::new()
+            };
 
             let kind = if !exists {
                 ChangeKind::Create
-            } else if previous == next {
+            } else if previous == *contents {
                 ChangeKind::Unchanged
             } else {
                 ChangeKind::Update
@@ -241,7 +252,11 @@ fn describe(resolution: &Resolution, fs: &dyn BootFs) -> Result<Change> {
                 (kind != ChangeKind::Unchanged)
                     .then(|| "  (content withheld: this file holds secret material)\n".to_string())
             } else {
-                diff::unified(&previous, &next)
+                match (String::from_utf8(previous), std::str::from_utf8(contents)) {
+                    (Ok(before), Ok(after)) => diff::unified(&before, after),
+                    _ => (kind != ChangeKind::Unchanged)
+                        .then(|| format!("  (binary, {} bytes)\n", contents.len())),
+                }
             };
 
             Ok(Change { path: path.clone(), kind, sensitive: *sensitive, diff })
@@ -307,8 +322,13 @@ pub fn revert_plan(plan: &Plan) -> Plan {
         Action::EditCmdline { path: "cmdline.txt".to_string(), ops: cmdline::cleanup_ops() },
     ];
     for action in &plan.actions {
-        if let Action::Write { path, .. } = action {
-            actions.push(Action::Remove { path: path.clone() });
+        match action {
+            Action::Write { path, .. } | Action::WriteBytes { path, .. } => {
+                actions.push(Action::Remove { path: path.clone() })
+            }
+            Action::MergeManagedBlock { .. }
+            | Action::EditCmdline { .. }
+            | Action::Remove { .. } => {}
         }
     }
     Plan {
