@@ -117,6 +117,20 @@ enabled = true
 [hardware]
 pcie_gen = 3
 overlays = ["disable-bt"]
+
+[[files]]
+source = "files/motd"
+destination = "/etc/motd"
+
+[[files]]
+source = "files/sysctl.d"
+destination = "/etc/sysctl.d"
+mode = "0644"
+
+[[run]]
+description = "refresh the package index"
+command = "apt-get update"
+ignore_failure = true
 ```
 
 Because both secrets come from the environment, the file above is safe to
@@ -162,6 +176,27 @@ exist on the device is skipped with a warning rather than created.
 **`authorized_keys_files`** reads the keys from a file next to the
 specification, so the key material stays in one place instead of being pasted
 into every specification.
+
+**Your own files and commands.** `[[files]]` copies anything next to the
+specification onto the root filesystem — `files/motd` as a single file,
+`files/sysctl.d` as a directory copied recursively. Both headers are TOML
+arrays of tables, so repeat them for as many files and commands as you need;
+the example above declares two transfers, and `[[run]]` commands execute in
+the order they are written. `[[run]]` runs once everything else is in place. `apt-get update` needs a network,
+which a bench board may not have on its very first boot, so this one tolerates
+failure rather than marking the whole run failed.
+
+For anything longer than one line, transfer a script and invoke it:
+
+```toml
+[[files]]
+source = "files/setup.sh"
+destination = "/usr/local/sbin/setup.sh"
+mode = "0755"
+
+[[run]]
+command = "/usr/local/sbin/setup.sh"
+```
 
 ## One specification, a fleet of boards
 

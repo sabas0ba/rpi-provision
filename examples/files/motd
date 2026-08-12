@@ -1,0 +1,2 @@
+Provisioned by rpi-provision. See /var/log/rpi-provision.log for the
+first-boot transcript and /var/lib/rpi-provision/status for its outcome.

@@ -171,7 +171,12 @@ fn the_payload_step_installs_files_with_the_declared_modes() {
                 return format!("{line}\n");
             }
             let fields: Vec<&str> = line.split('\t').collect();
-            format!("{}\t{}\t{}{}\n", fields[0], fields[1], destination_root.display(), fields[2])
+            let (mode, owner, group, source, destination) =
+                (fields[0], fields[1], fields[2], fields[3], fields[4]);
+            format!(
+                "{mode}\t{owner}\t{group}\t{source}\t{}{destination}\n",
+                destination_root.display()
+            )
         })
         .collect();
     std::fs::write(base.join("manifest.tsv"), &redirected).unwrap();
@@ -219,7 +224,7 @@ fn the_payload_step_stops_on_a_missing_source_file() {
 
     std::fs::write(
         base.join("manifest.tsv"),
-        format!("0644\tpayload/does/not/exist\t{}/target\n", destination.display()),
+        format!("0644\troot\troot\tpayload/does/not/exist\t{}/target\n", destination.display()),
     )
     .unwrap();
 

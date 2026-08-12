@@ -254,17 +254,21 @@ pub fn payload_step() -> Step {
     let _ = writeln!(out, "[ -f \"$MANIFEST\" ] || exit 0");
     let _ = writeln!(out);
     let _ = writeln!(out, "TAB=\"$(printf '\\t')\"");
-    let _ = writeln!(out, "while IFS=\"$TAB\" read -r mode source destination; do");
+    let _ = writeln!(out, "while IFS=\"$TAB\" read -r mode owner group source destination; do");
     let _ = writeln!(out, "    case \"$mode\" in");
     let _ = writeln!(out, "        ''|\\#*) continue ;;");
     let _ = writeln!(out, "    esac");
     let _ = writeln!(out, "    if [ -z \"$source\" ] || [ -z \"$destination\" ]; then");
     let _ = writeln!(out, "        continue");
     let _ = writeln!(out, "    fi");
-    // No -o/-g: the runner is root, so install already creates the file owned
-    // by root, and naming the user explicitly would make the step impossible
-    // to exercise anywhere else.
+    // No -o/-g on install: the runner is root, so it already creates the file
+    // owned by root, and naming the user explicitly would make the step
+    // impossible to exercise anywhere else. Anything that wants a different
+    // owner says so, and only then is chown involved.
     let _ = writeln!(out, "    install -D -m \"$mode\" \"$BASE/$source\" \"$destination\"");
+    let _ = writeln!(out, "    if [ \"$owner\" != root ] || [ \"$group\" != root ]; then");
+    let _ = writeln!(out, "        chown \"$owner:$group\" \"$destination\"");
+    let _ = writeln!(out, "    fi");
     let _ = writeln!(out, "    printf 'installed %s (mode %s)\\n' \"$destination\" \"$mode\"");
     let _ = writeln!(out, "    case \"$destination\" in");
     let _ = writeln!(out, "        /etc/sudoers.d/*)");
@@ -394,6 +398,35 @@ pub fn locale_step(spec: &Spec) -> Step {
         order: 70,
         name: "locale",
         body: compose("Apply time zone, locale and keyboard settings.", &out),
+    }
+}
+
+/// The commands declared in `[[run]]`, in the order they were written.
+///
+/// Runs last: everything else — the account, the payload, networking — is in
+/// place by the time a user command sees the machine.
+pub fn run_step(spec: &Spec) -> Step {
+    let mut out = String::new();
+    let _ = writeln!(out, "# Each command below is shell source taken from the specification.");
+    let _ = writeln!(out, "# It is the one place a specification contributes code rather than a");
+    let _ = writeln!(out, "# value, so it is emitted verbatim and not quoted.");
+    for step in &spec.run {
+        let _ = writeln!(out);
+        if let Some(description) = &step.description {
+            let _ = writeln!(out, "printf 'run: %s\\n' {}", quote(description));
+        }
+        if step.ignore_failure {
+            let _ = writeln!(out, "if ! {}; then", step.command);
+            let _ = writeln!(out, "    printf 'run: command failed, continuing\\n' >&2");
+            let _ = writeln!(out, "fi");
+        } else {
+            let _ = writeln!(out, "{}", step.command);
+        }
+    }
+    Step {
+        order: 80,
+        name: "run",
+        body: compose("Run the commands declared in the specification.", &out),
     }
 }
 
