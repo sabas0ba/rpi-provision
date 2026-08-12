@@ -37,27 +37,43 @@ $ rpi-provision apply examples/development.toml --boot /media/$USER/bootfs
 
 ## Installation
 
-Prebuilt binaries are published by CI for `x86_64-unknown-linux-musl`,
-`aarch64-unknown-linux-musl` and `x86_64-pc-windows-msvc`. To build from
-source:
+Each tagged release carries a binary for `x86_64-unknown-linux-musl`,
+`aarch64-unknown-linux-musl` and `x86_64-pc-windows-msvc`, alongside a
+`SHA256SUMS` file:
 
 ```console
-$ cargo build --release --locked
-$ ./target/release/rpi-provision --help
+$ tag=v1.0.0
+$ curl -LO https://github.com/sabas0ba/rpi-provision/releases/download/$tag/rpi-provision-$tag-x86_64-unknown-linux-musl
+$ curl -LO https://github.com/sabas0ba/rpi-provision/releases/download/$tag/SHA256SUMS
+$ sha256sum --check --ignore-missing SHA256SUMS
+$ install -m 0755 rpi-provision-$tag-x86_64-unknown-linux-musl ~/.local/bin/rpi-provision
 ```
 
-The workspace has **no external dependencies**, so the build needs nothing but
-a Rust toolchain. See `docs/adr/0001-zero-dependencies.md`.
+The musl builds are static, so they need nothing installed to run.
 
-There is also a desktop application, in a workspace of its own so that Tauri's
-dependencies stay out of the one above:
+The desktop application is on the same release. Windows gets a standalone
+executable to download and run; Linux gets a `.deb`, because the window needs
+a webview that the machine may not have and a package is how you say so:
 
 ```console
-$ cargo build --release --manifest-path gui/Cargo.toml
+$ sudo apt install ./rpi-provision-gui-$tag-amd64.deb
 ```
 
-It needs `libwebkit2gtk-4.1-dev` and `libgtk-3-dev` on Debian and Ubuntu. See
-`docs/gui.md` and `docs/adr/0003-gui-in-its-own-workspace.md`.
+On Windows, run `rpi-provision-gui-$tag-x86_64-pc-windows-msvc.exe` as it is.
+It needs the WebView2 runtime, which Windows 11 has already.
+
+To build either from source instead:
+
+```console
+$ cargo build --release --locked                      # the command line
+$ cargo build --release --manifest-path gui/Cargo.toml  # the window
+```
+
+The workspace has **no external dependencies**, so the command line needs
+nothing but a Rust toolchain. See `docs/adr/0001-zero-dependencies.md`. The
+window is a workspace of its own and needs `libwebkit2gtk-4.1-dev` and
+`libgtk-3-dev` on Debian and Ubuntu; see `docs/gui.md` and
+`docs/adr/0003-gui-in-its-own-workspace.md`.
 
 ## Usage
 

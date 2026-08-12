@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "rpi-provision"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rpi-provision-apply",
  "rpi-provision-render",
@@ -14,7 +14,7 @@ dependencies = [
 
 [[package]]
 name = "rpi-provision-apply"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rpi-provision-render",
  "rpi-provision-spec",
@@ -22,18 +22,18 @@ dependencies = [
 
 [[package]]
 name = "rpi-provision-render"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rpi-provision-spec",
 ]
 
 [[package]]
 name = "rpi-provision-spec"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rpi-provision-toml",
 ]
 
 [[package]]
 name = "rpi-provision-toml"
-version = "0.1.0"
+version = "1.0.0"

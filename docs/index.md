@@ -147,9 +147,22 @@ card and run by hand. The details, including how to debug a run, are in
 
 ## Installation
 
-CI publishes binaries for `x86_64-unknown-linux-musl`,
-`aarch64-unknown-linux-musl` and `x86_64-pc-windows-msvc`. To build from
-source:
+Each [tagged release](https://github.com/sabas0ba/rpi-provision/releases)
+carries a binary for `x86_64-unknown-linux-musl`,
+`aarch64-unknown-linux-musl` and `x86_64-pc-windows-msvc`, with a
+`SHA256SUMS` file beside them. The musl builds are static, so they need
+nothing installed to run:
+
+```console
+$ tag=v1.0.0
+$ curl -LO https://github.com/sabas0ba/rpi-provision/releases/download/$tag/rpi-provision-$tag-x86_64-unknown-linux-musl
+$ curl -LO https://github.com/sabas0ba/rpi-provision/releases/download/$tag/SHA256SUMS
+$ sha256sum --check --ignore-missing SHA256SUMS
+```
+
+The [desktop application](gui.md) is on the same release: a standalone
+executable on Windows, and a `.deb` on Debian and Ubuntu. To build either from
+source instead:
 
 ```console
 $ cargo build --release --locked
