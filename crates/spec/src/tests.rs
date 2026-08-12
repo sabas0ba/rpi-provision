@@ -670,3 +670,39 @@ command = "echo three"
     let commands: Vec<&str> = loaded.spec.run.iter().map(|step| step.command.as_str()).collect();
     assert_eq!(commands, vec!["echo one", "echo two", "echo three"], "written order is kept");
 }
+
+// ------------------------------------------------------- power and cooling
+
+#[test]
+fn the_usb_current_limit_is_off_by_default() {
+    let loaded = load(MINIMAL).unwrap();
+    assert!(!loaded.spec.hardware.usb_max_current);
+}
+
+#[test]
+fn fan_thresholds_must_ascend() {
+    let source = format!("{MINIMAL}\n[hardware]\nfan_thresholds = [60000, 55000]\n");
+    let error = load(&source).unwrap_err();
+    assert!(error.message.contains("must ascend"), "{}", error.message);
+}
+
+#[test]
+fn there_are_only_four_fan_thresholds() {
+    let source =
+        format!("{MINIMAL}\n[hardware]\nfan_thresholds = [10000, 20000, 30000, 40000, 50000]\n");
+    let error = load(&source).unwrap_err();
+    assert!(error.message.contains("fan_temp3"), "{}", error.message);
+}
+
+#[test]
+fn a_fan_threshold_in_degrees_rather_than_millidegrees_is_caught() {
+    // 55 looks like 55 °C and means 0.055 °C, which would run the fan flat
+    // out forever. Out of range is the only way to tell the two apart.
+    let source = format!("{MINIMAL}\n[hardware]\nfan_thresholds = [55, 65]\n");
+    let loaded = load(&source).unwrap();
+    assert_eq!(loaded.spec.hardware.fan_thresholds, vec![55, 65]);
+
+    let source = format!("{MINIMAL}\n[hardware]\nfan_thresholds = [200000]\n");
+    let error = load(&source).unwrap_err();
+    assert!(error.message.contains("millidegrees"), "{}", error.message);
+}

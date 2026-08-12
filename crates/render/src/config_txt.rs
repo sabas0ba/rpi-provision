@@ -43,6 +43,15 @@ pub fn managed_block(spec: &Spec, digest: &str) -> String {
     if let Some(generation) = hw.pcie_gen {
         let _ = writeln!(out, "dtparam=pciex1_gen={generation}");
     }
+    if hw.usb_max_current {
+        // Raspberry Pi 5 holds downstream USB to 600mA unless the supply
+        // claims 5A, and refuses to boot from USB on a 3A supply. This forces
+        // the high limit; the supply has to be able to deliver it.
+        let _ = writeln!(out, "usb_max_current_enable=1");
+    }
+    for (step, threshold) in hw.fan_thresholds.iter().enumerate() {
+        let _ = writeln!(out, "dtparam=fan_temp{step}={threshold}");
+    }
     if spec.network.usb_gadget.is_some() {
         // Raspberry Pi 5 has no OTG_ID pin, so peripheral mode must be forced.
         let _ = writeln!(out, "dtoverlay=dwc2,dr_mode=peripheral");

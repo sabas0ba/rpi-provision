@@ -178,6 +178,33 @@ impl<'a> Reader<'a> {
         }
     }
 
+    pub fn integer_list(&mut self, key: &str) -> Result<Vec<i64>> {
+        match self.take(key) {
+            None => Ok(Vec::new()),
+            Some(Node { value: Value::Array(items), .. }) => {
+                let mut out = Vec::with_capacity(items.len());
+                for item in items {
+                    match &item.value {
+                        Value::Integer(number) => out.push(*number),
+                        other => {
+                            return Err(Error::at(
+                                item.line,
+                                item.col,
+                                format!(
+                                    "`{}`: array entries must be integers, found {}",
+                                    self.key_path(key),
+                                    other.type_name()
+                                ),
+                            ))
+                        }
+                    }
+                }
+                Ok(out)
+            }
+            Some(node) => Err(self.wrong_type(key, "an array of integers", node.type_name())),
+        }
+    }
+
     /// Borrow a sub-table. Returns an empty reader when the key is absent so
     /// that callers can apply defaults uniformly.
     pub fn table(&mut self, key: &str) -> Result<Reader<'a>> {
