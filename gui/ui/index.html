@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>rpi-provision</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <span class="brand">rpi-provision</span>
+      <span id="generator" class="muted"></span>
+      <span class="spacer"></span>
+      <span id="state" class="pill pill-idle">no specification</span>
+    </header>
+
+    <main>
+      <aside>
+        <section>
+          <h2>Card</h2>
+          <button id="detect" type="button">Detect boot partitions</button>
+          <ul id="cards" class="list"></ul>
+          <label for="boot">Boot partition</label>
+          <input id="boot" type="text" spellcheck="false"
+                 placeholder="/media/you/bootfs  or  D:\" />
+        </section>
+
+        <section>
+          <h2>Specification</h2>
+          <label for="specPath">File</label>
+          <input id="specPath" type="text" spellcheck="false" placeholder="pi.toml" />
+          <div class="row">
+            <button id="open" type="button">Open</button>
+            <button id="save" type="button">Save</button>
+            <button id="template" type="button">New</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>Secrets</h2>
+          <p class="muted small">
+            Values for the environment variables the specification names. Held
+            in this window only — never written to the file, and taken from the
+            real environment when left blank.
+          </p>
+          <div id="secrets" class="secrets"></div>
+          <button id="addSecret" type="button" class="subtle">Add a variable</button>
+        </section>
+      </aside>
+
+      <div class="work">
+        <nav class="tabs" role="tablist">
+          <button type="button" class="tab active" data-panel="form" role="tab">Form</button>
+          <button type="button" class="tab" data-panel="toml" role="tab">TOML</button>
+          <button type="button" class="tab" data-panel="output" role="tab">Output</button>
+        </nav>
+
+        <section id="panel-form" class="panel active">
+          <p class="muted small">
+            Every control writes straight into the document, keeping its
+            comments and layout. Connections, transfers and commands
+            — <code>[[network.ethernet]]</code>, <code>[[network.wifi]]</code>,
+            <code>[[files]]</code>, <code>[[run]]</code> — are lists, so they
+            are edited on the TOML tab.
+          </p>
+
+          <fieldset>
+            <legend>System</legend>
+            <div class="grid">
+              <label>Host name<input data-key="system.hostname" type="text" /></label>
+              <label>Time zone<input data-key="system.timezone" type="text" placeholder="Asia/Tokyo" /></label>
+              <label>Locale<input data-key="system.locale" type="text" placeholder="en_US.UTF-8" /></label>
+              <label>Keyboard<input data-key="system.keymap" type="text" placeholder="jp" /></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Account</legend>
+            <div class="grid">
+              <label>User name<input data-key="user.name" type="text" /></label>
+              <label>Shell<input data-key="user.shell" type="text" placeholder="/bin/bash" /></label>
+              <label>Sudo
+                <select data-key="user.sudo">
+                  <option value="">(default: nopasswd)</option>
+                  <option value="nopasswd">nopasswd</option>
+                  <option value="password">password</option>
+                  <option value="none">none</option>
+                </select>
+              </label>
+              <label>Groups (comma separated)
+                <input data-key="user.groups" data-list="1" type="text" placeholder="gpio, i2c, spi" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>SSH</legend>
+            <div class="grid">
+              <label class="check"><input data-key="ssh.enabled" type="checkbox" /> Enable the server</label>
+              <label class="check"><input data-key="ssh.password_authentication" type="checkbox" /> Password authentication</label>
+              <label>Port<input data-key="ssh.port" data-number="1" type="number" min="1" max="65535" /></label>
+              <label>Permit root login
+                <select data-key="ssh.permit_root_login">
+                  <option value="">(default: no)</option>
+                  <option value="no">no</option>
+                  <option value="prohibit-password">prohibit-password</option>
+                  <option value="forced-commands-only">forced-commands-only</option>
+                  <option value="yes">yes</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Network</legend>
+            <div class="grid">
+              <label>Wi-Fi country<input data-key="network.wifi_country" type="text" placeholder="JP" /></label>
+              <label class="check"><input data-key="network.usb_gadget.enabled" type="checkbox" /> USB gadget link</label>
+              <label>Gadget address<input data-key="network.usb_gadget.address" type="text" placeholder="10.55.0.1/24" /></label>
+              <label>Gadget function
+                <select data-key="network.usb_gadget.function">
+                  <option value="">(default: ecm)</option>
+                  <option value="ecm">ecm</option>
+                  <option value="ncm">ncm</option>
+                  <option value="rndis">rndis</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Hardware</legend>
+            <div class="grid">
+              <label class="check"><input data-key="hardware.uart.enabled" type="checkbox" /> UART0 on GPIO 14/15</label>
+              <label class="check"><input data-key="hardware.uart.console" type="checkbox" /> Console on that UART</label>
+              <label class="check"><input data-key="hardware.uart.debug_connector" type="checkbox" /> Debug connector</label>
+              <label class="check"><input data-key="hardware.i2c.enabled" type="checkbox" /> I²C</label>
+              <label>I²C baud rate<input data-key="hardware.i2c.baudrate" data-number="1" type="number" /></label>
+              <label class="check"><input data-key="hardware.spi.enabled" type="checkbox" /> SPI</label>
+              <label class="check"><input data-key="hardware.one_wire.enabled" type="checkbox" /> 1-Wire</label>
+              <label>PCIe generation<input data-key="hardware.pcie_gen" data-number="1" type="number" min="1" max="3" /></label>
+            </div>
+            <p class="muted small">
+              On Raspberry Pi 5 the debug connector is a different port from
+              GPIO 14/15, and the USB-C socket is also the power input: power
+              the board through the GPIO header when the gadget link is in use.
+            </p>
+          </fieldset>
+
+          <fieldset>
+            <legend>Provisioning</legend>
+            <div class="grid">
+              <label class="check"><input data-key="provisioning.wipe_payload" type="checkbox" /> Delete the payload after a successful boot</label>
+              <label>Log path<input data-key="provisioning.log_path" type="text" placeholder="/var/log/rpi-provision.log" /></label>
+            </div>
+          </fieldset>
+        </section>
+
+        <section id="panel-toml" class="panel">
+          <textarea id="toml" spellcheck="false" placeholder="# Open a file, or start from a template."></textarea>
+        </section>
+
+        <section id="panel-output" class="panel">
+          <pre id="output" class="output">Nothing has been run yet.</pre>
+        </section>
+      </div>
+
+      <aside class="right">
+        <section>
+          <h2>Status</h2>
+          <div id="status" class="status">Waiting for a specification.</div>
+        </section>
+
+        <section>
+          <h2>Card operations</h2>
+          <div class="stack">
+            <button id="preview" type="button">Preview changes</button>
+            <button id="apply" type="button" class="primary">Apply to the card</button>
+            <button id="revert" type="button">Revert what apply added</button>
+          </div>
+          <label class="check tight">
+            <input id="backupFirst" type="checkbox" checked /> Snapshot the card first
+          </label>
+          <label for="snapshotDir">Snapshot directory</label>
+          <input id="snapshotDir" type="text" spellcheck="false" placeholder="./bootfs-backup" />
+          <div class="stack">
+            <button id="backup" type="button">Snapshot now</button>
+            <button id="inspect" type="button">Describe a snapshot</button>
+            <button id="restore" type="button" class="danger">Restore a snapshot</button>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <div id="confirm" class="overlay" hidden>
+      <div class="dialog">
+        <h3 id="confirmTitle">Are you sure?</h3>
+        <p id="confirmBody"></p>
+        <div class="row end">
+          <button id="confirmNo" type="button">Cancel</button>
+          <button id="confirmYes" type="button" class="danger">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

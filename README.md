@@ -49,6 +49,16 @@ $ ./target/release/rpi-provision --help
 The workspace has **no external dependencies**, so the build needs nothing but
 a Rust toolchain. See `docs/adr/0001-zero-dependencies.md`.
 
+There is also a desktop application, in a workspace of its own so that Tauri's
+dependencies stay out of the one above:
+
+```console
+$ cargo build --release --manifest-path gui/Cargo.toml
+```
+
+It needs `libwebkit2gtk-4.1-dev` and `libgtk-3-dev` on Debian and Ubuntu. See
+`docs/gui.md` and `docs/adr/0003-gui-in-its-own-workspace.md`.
+
 ## Usage
 
 ```
@@ -173,6 +183,7 @@ repository — every page below reads equally well from either.
 | [First boot](docs/first-boot.md) | What runs on the device, and how to debug it |
 | [Windows](docs/windows.md) | Using the tool from Windows |
 | [Raspberry Pi 5](docs/raspberry-pi-5.md) | Model specific behaviour and its sources |
+| [Desktop application](docs/gui.md) | The window over the same operations |
 | [Design decisions](docs/adr/) | Architecture decision records |
 
 ## Development

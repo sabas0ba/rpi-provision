@@ -4,3 +4,5 @@
 *.img.xz
 secrets/
 !secrets/.gitkeep
+/gui/target
+/gui/src-tauri/gen

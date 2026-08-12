@@ -445,7 +445,7 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
 }
 
 pub fn detect(options: &Options) -> Result<()> {
-    let candidates = crate::detect::candidates();
+    let candidates = rpi_provision_apply::detect::candidates();
     if candidates.is_empty() {
         if !options.quiet {
             eprintln!(

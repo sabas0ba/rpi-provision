@@ -7,6 +7,9 @@ members = [
     "crates/apply",
     "crates/cli",
 ]
+# The desktop front end is a workspace of its own so that Tauri's dependency
+# tree cannot reach this one. See docs/adr/0003-gui-in-its-own-workspace.md.
+exclude = ["gui"]
 
 [workspace.package]
 version = "0.1.0"
