@@ -140,6 +140,8 @@ the same subnet, or rely on IPv4 link-local.
 | Key | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `pcie_gen` | integer | — | 1–3; emits `dtparam=pciex1_gen=` |
+| `usb_max_current` | boolean | `false` | `usb_max_current_enable=1`. Forces the high USB current limit; see [Raspberry Pi 5 notes](raspberry-pi-5.md#usb-current-and-power) before setting it |
+| `fan_thresholds` | array of integers | `[]` | Up to four, ascending, in **millidegrees** Celsius. Emits `dtparam=fan_temp0=` upwards, one per entry. `55000` is 55 °C |
 | `overlays` | array of strings | `[]` | Each becomes `dtoverlay=<value>` |
 | `dtparams` | array of strings | `[]` | Each becomes `dtparam=<value>` |
 | `config_extra` | array of strings | `[]` | Emitted verbatim into the managed block |

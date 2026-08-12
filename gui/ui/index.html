@@ -138,11 +138,15 @@
               <label class="check"><input data-key="hardware.spi.enabled" type="checkbox" /> SPI</label>
               <label class="check"><input data-key="hardware.one_wire.enabled" type="checkbox" /> 1-Wire</label>
               <label>PCIe generation<input data-key="hardware.pcie_gen" data-number="1" type="number" min="1" max="3" /></label>
+              <label class="check"><input data-key="hardware.usb_max_current" type="checkbox" /> Force the high USB current limit</label>
             </div>
             <p class="muted small">
               On Raspberry Pi 5 the debug connector is a different port from
               GPIO 14/15, and the USB-C socket is also the power input: power
               the board through the GPIO header when the gadget link is in use.
+              The USB current limit only changes what the board is willing to
+              draw — leave it off unless the supply can really deliver 5 A. The
+              fan curve is a list, so it lives on the TOML tab.
             </p>
           </fieldset>
 

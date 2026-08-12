@@ -521,3 +521,32 @@ fn no_run_commands_means_no_run_step() {
         "an empty `run` must not produce a step"
     );
 }
+
+#[test]
+fn the_usb_current_limit_reaches_config_txt() {
+    let source = format!("{MINIMAL}\n[hardware]\nusb_max_current = true\n");
+    let block = block_of(&plan_of(&source), "config.txt");
+    assert!(block.contains("\nusb_max_current_enable=1\n"), "{block}");
+
+    // Absent by default: forcing the high limit on a supply that cannot
+    // deliver it is not something to do behind the operator's back.
+    let block = block_of(&plan_of(MINIMAL), "config.txt");
+    assert!(!block.contains("usb_max_current_enable"), "{block}");
+}
+
+#[test]
+fn fan_thresholds_become_numbered_dtparams() {
+    let source = format!("{MINIMAL}\n[hardware]\nfan_thresholds = [55000, 65000, 70000, 78000]\n");
+    let block = block_of(&plan_of(&source), "config.txt");
+    for (step, value) in [(0, 55000), (1, 65000), (2, 70000), (3, 78000)] {
+        assert!(block.contains(&format!("dtparam=fan_temp{step}={value}\n")), "{block}");
+    }
+}
+
+#[test]
+fn a_partial_fan_curve_only_overrides_the_steps_it_names() {
+    let source = format!("{MINIMAL}\n[hardware]\nfan_thresholds = [55000]\n");
+    let block = block_of(&plan_of(&source), "config.txt");
+    assert!(block.contains("dtparam=fan_temp0=55000\n"), "{block}");
+    assert!(!block.contains("fan_temp1"), "the rest keep the firmware's curve: {block}");
+}

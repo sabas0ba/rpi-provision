@@ -77,6 +77,11 @@ enabled = true
 pcie_gen = 3
 overlays = ["disable-bt"]
 
+# Bring the official fan on earlier than the firmware's 50 °C, in
+# millidegrees, which is what dtparam=fan_tempN takes. A bench board sitting
+# under a desk is quieter to keep cool than to let get hot.
+fan_thresholds = [45000, 58000, 66000, 74000]
+
 # Files copied onto the root filesystem during the first boot. `source` is
 # relative to this file; a directory is copied recursively.
 [[files]]

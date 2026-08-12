@@ -1108,6 +1108,9 @@ impl OneWire {
     }
 }
 
+/// `fan_temp0` to `fan_temp3`, per the firmware's four step fan curve.
+pub const FAN_THRESHOLDS: usize = 4;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hardware {
     pub uart: Uart,
@@ -1115,6 +1118,10 @@ pub struct Hardware {
     pub spi: Spi,
     pub one_wire: OneWire,
     pub pcie_gen: Option<u8>,
+    /// `usb_max_current_enable=1`. Raspberry Pi 5 only.
+    pub usb_max_current: bool,
+    /// `dtparam=fan_tempN`, in millidegrees Celsius, lowest first.
+    pub fan_thresholds: Vec<i64>,
     pub overlays: Vec<String>,
     pub dtparams: Vec<String>,
     pub config_extra: Vec<String>,
@@ -1133,6 +1140,36 @@ impl Hardware {
             Some(_) => return Err(reader.key_error("pcie_gen", "must be 1, 2 or 3")),
             None => None,
         };
+        let usb_max_current = reader.bool_or("usb_max_current", false)?;
+        let fan_thresholds = reader.integer_list("fan_thresholds")?;
+        if fan_thresholds.len() > FAN_THRESHOLDS {
+            return Err(reader.key_error(
+                "fan_thresholds",
+                format!(
+                    "the firmware has {FAN_THRESHOLDS} thresholds, `fan_temp0` to `fan_temp{}`",
+                    FAN_THRESHOLDS - 1
+                ),
+            ));
+        }
+        for pair in fan_thresholds.windows(2) {
+            if pair[1] <= pair[0] {
+                return Err(reader.key_error(
+                    "fan_thresholds",
+                    "must ascend: each threshold turns the fan up as the temperature passes it",
+                ));
+            }
+        }
+        for threshold in &fan_thresholds {
+            if !(0..=150_000).contains(threshold) {
+                return Err(reader.key_error(
+                    "fan_thresholds",
+                    format!(
+                        "`{threshold}` is out of range; these are millidegrees Celsius, so 55 °C \
+                         is 55000"
+                    ),
+                ));
+            }
+        }
         let overlays = reader.string_list("overlays")?;
         let dtparams = reader.string_list("dtparams")?;
         let config_extra = reader.string_list("config_extra")?;
@@ -1167,6 +1204,8 @@ impl Hardware {
             spi,
             one_wire,
             pcie_gen,
+            usb_max_current,
+            fan_thresholds,
             overlays,
             dtparams,
             config_extra,
